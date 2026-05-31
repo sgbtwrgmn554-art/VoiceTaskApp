@@ -164,7 +164,10 @@ export function ChatPanel({ messages, isLoading, onSendMessage, onClearChat }: C
 
       {/* Input area */}
       <div className="bg-white border-t border-gray-100 p-3">
-        <div className="flex items-end gap-2 bg-gray-50 rounded-2xl border border-gray-200 p-2 focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-transparent transition-all">
+        <div
+          className="flex items-end gap-2 bg-gray-50 rounded-2xl border border-gray-200 p-2 focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-transparent transition-all"
+          onClick={() => textareaRef.current?.focus()}
+        >
           {/* File upload */}
           <button
             type="button"
@@ -184,10 +187,11 @@ export function ChatPanel({ messages, isLoading, onSendMessage, onClearChat }: C
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onClick={() => textareaRef.current?.focus()}
             placeholder="כתוב הודעה או לחץ על המיקרופון..."
             rows={1}
             className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 resize-none focus:outline-none max-h-24 overflow-y-auto"
-            style={{ minHeight: '24px' }}
+            style={{ minHeight: '36px', WebkitUserSelect: 'text', userSelect: 'text', touchAction: 'manipulation' }}
           />
 
           {/* Voice button */}
