@@ -85,3 +85,24 @@ export type ToolName =
   | 'set_reminder'
   | 'mark_task_done'
   | 'list_tasks';
+
+export interface Contact {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+export type WhatsAppMessageStatus = 'pending' | 'sent' | 'cancelled';
+
+export interface WhatsAppScheduledMessage {
+  id: string;
+  contactId: string;
+  contactName: string;
+  phone: string;
+  message: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  status: WhatsAppMessageStatus;
+  createdAt: string;
+  sentAt?: string;
+}
