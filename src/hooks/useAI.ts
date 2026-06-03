@@ -145,23 +145,23 @@ export function useAI(handlers: ToolHandlers) {
     try {
       switch (toolName) {
         case 'create_task': {
-          const input = toolInput as CreateTaskInput;
+          const input = toolInput as unknown as CreateTaskInput;
           const task = handlers.createTask(input);
           return JSON.stringify({ success: true, task_id: task.id, task });
         }
         case 'update_task': {
-          const input = toolInput as UpdateTaskInput;
+          const input = toolInput as unknown as UpdateTaskInput;
           const task = handlers.updateTask(input);
           if (!task) return JSON.stringify({ success: false, error: 'Task not found' });
           return JSON.stringify({ success: true, task });
         }
         case 'delete_task': {
-          const { id } = toolInput as { id: string };
+          const { id } = toolInput as unknown as { id: string };
           const success = handlers.deleteTask(id);
           return JSON.stringify({ success });
         }
         case 'set_reminder': {
-          const input = toolInput as SetReminderInput;
+          const input = toolInput as unknown as SetReminderInput;
           const task = handlers.setReminder(input.task_id, {
             date: input.date,
             time: input.time,
