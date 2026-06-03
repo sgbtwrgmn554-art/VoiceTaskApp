@@ -8,6 +8,7 @@ import { useWhatsAppScheduler } from './hooks/useWhatsAppScheduler';
 import { TaskList } from './components/TaskList';
 import { ChatPanel } from './components/ChatPanel';
 import { WhatsAppPanel } from './components/WhatsAppPanel';
+import { InstallPWA } from './components/InstallPWA';
 
 type Tab = 'tasks' | 'whatsapp';
 
@@ -151,6 +152,8 @@ export default function App() {
           </>
         )}
       </div>
+
+      <InstallPWA />
     </div>
   );
 }
