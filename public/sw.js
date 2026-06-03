@@ -165,6 +165,34 @@ self.addEventListener('periodicsync', event => {
   }
 });
 
+// ── Push event (from backend server — works on iPhone PWA) ───────────────────
+
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data?.json() ?? {}; } catch {}
+  const { title = '📱 הודעה חדשה', body = '', waUrl, id } = data;
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: '/icon.svg',
+      badge: '/icon.svg',
+      tag: `wa-push-${id}`,
+      requireInteraction: true,
+      data: { url: waUrl, id },
+      actions: [
+        { action: 'open', title: '📱 פתח WhatsApp' },
+        { action: 'dismiss', title: 'סגור' },
+      ],
+    }).then(() => {
+      // Notify open clients to mark message as sent
+      return self.clients.matchAll({ type: 'window' }).then(list =>
+        list.forEach(c => c.postMessage({ type: 'MESSAGE_FIRED', id }))
+      );
+    })
+  );
+});
+
 // ── Notification click ────────────────────────────────────────────────────────
 
 self.addEventListener('notificationclick', event => {
@@ -172,6 +200,8 @@ self.addEventListener('notificationclick', event => {
   if (event.action === 'dismiss') return;
 
   const { url } = event.notification.data;
+  if (!url) return;
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const c of list) {

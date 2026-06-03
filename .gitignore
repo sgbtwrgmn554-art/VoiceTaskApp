@@ -2,3 +2,5 @@ node_modules/
 dist/
 .env
 .env.local
+server/.env
+server/data.json
