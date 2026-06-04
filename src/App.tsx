@@ -1,26 +1,38 @@
 import React, { useState, useCallback } from 'react';
-import { Task, TaskStatus, Reminder } from './types';
+import { AppTab, ThemeColor, Task, Reminder } from './types';
 import { useTasks } from './hooks/useTasks';
 import { useAI } from './hooks/useAI';
 import { useReminders } from './hooks/useReminders';
-import { TaskList } from './components/TaskList';
-import { ChatPanel } from './components/ChatPanel';
+import HomeScreen from './components/HomeScreen';
+import NewRecordingScreen from './components/NewRecordingScreen';
+import AIChatScreen from './components/AIChatScreen';
+import CalendarScreen from './components/CalendarScreen';
+import StatsScreen from './components/StatsScreen';
+import AuthScreen from './components/AuthScreen';
+import ProfileScreen from './components/ProfileScreen';
 
 export default function App() {
-  const [chatOpen, setChatOpen] = useState(false);
+  const [tab, setTab] = useState<AppTab>('home');
+  const [theme, setTheme] = useState<ThemeColor>('green');
+  const [showNewRecording, setShowNewRecording] = useState(false);
+  const [user, setUser] = useState<{ email: string } | null>(() => {
+    const saved = localStorage.getItem('vt_user');
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  const {
-    tasks,
-    createTask,
-    updateTask,
-    deleteTask,
-    markTaskDone,
-    setReminder,
-  } = useTasks();
+  const handleAuth = async (email: string, _password: string, _isRegister: boolean) => {
+    const u = { email };
+    localStorage.setItem('vt_user', JSON.stringify(u));
+    setUser(u);
+  };
 
-  // Handle reminder notifications updating lastNotified
+  const { tasks, createTask, updateTask, deleteTask, markTaskDone, setReminder } = useTasks();
+
   const handleReminderFired = useCallback((taskId: string, lastNotified: string) => {
-    updateTask({ id: taskId, reminder: { ...tasks.find(t => t.id === taskId)!.reminder!, lastNotified } });
+    const task = tasks.find(t => t.id === taskId);
+    if (task?.reminder) {
+      updateTask({ id: taskId, reminder: { ...task.reminder, lastNotified } });
+    }
   }, [tasks, updateTask]);
 
   useReminders({ tasks, onUpdateTask: handleReminderFired });
@@ -37,70 +49,114 @@ export default function App() {
 
   const { messages, isLoading, sendMessage, clearChat } = useAI(aiHandlers);
 
-  const handleCreateTask = (data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
-    createTask(data);
-  };
+  const accentColor = {
+    orange: '#f97316',
+    green:  '#22c55e',
+    purple: '#a855f7',
+    blue:   '#3b82f6',
+  }[theme];
 
-  const handleUpdateTask = (id: string, data: Partial<Task>) => {
-    updateTask({ id, ...data });
-  };
+  if (!user) {
+    return (
+      <div className="flex flex-col h-full bg-black text-white">
+        <AuthScreen onAuth={handleAuth} />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Main task area */}
-      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${chatOpen ? 'mr-0' : ''}`}>
-        <TaskList
-          tasks={tasks}
-          onCreateTask={handleCreateTask}
-          onUpdateTask={handleUpdateTask}
-          onDeleteTask={deleteTask}
-        />
-      </div>
+    <div className="flex flex-col h-full bg-black text-white" style={{ '--accent': accentColor } as React.CSSProperties}>
 
-      {/* Chat toggle button (mobile / collapsed) */}
-      {!chatOpen && (
-        <button
-          onClick={() => setChatOpen(true)}
-          className="fixed bottom-6 left-6 z-40 w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-2xl shadow-xl shadow-indigo-200 hover:scale-105 transition-transform flex items-center justify-center"
-          title="פתח עוזר AI"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-          </svg>
-          {messages.filter(m => m.role === 'assistant').length > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center">
-              {messages.filter(m => m.role === 'assistant').length}
-            </span>
-          )}
-        </button>
-      )}
-
-      {/* Chat panel - slides in from left (RTL: left side) */}
-      <div className={`${
-        chatOpen ? 'w-[360px] min-w-[360px]' : 'w-0 min-w-0'
-      } transition-all duration-300 overflow-hidden border-r border-gray-200 flex flex-col bg-white shadow-xl`}>
-        {chatOpen && (
-          <>
-            {/* Close button */}
-            <button
-              onClick={() => setChatOpen(false)}
-              className="absolute left-[360px] top-4 z-50 w-8 h-8 bg-white border border-gray-200 rounded-full shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
-              style={{ transform: 'translateX(50%)' }}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <ChatPanel
-              messages={messages}
-              isLoading={isLoading}
-              onSendMessage={sendMessage}
-              onClearChat={clearChat}
-            />
-          </>
+      {/* Screens */}
+      <div className="flex-1 overflow-hidden relative">
+        {showNewRecording ? (
+          <NewRecordingScreen
+            key="new-recording"
+            onBack={() => setShowNewRecording(false)}
+            onSave={(data) => { createTask(data); setShowNewRecording(false); }}
+            accentColor={accentColor}
+          />
+        ) : tab === 'home' ? (
+          <HomeScreen
+            key="home"
+            tasks={tasks}
+            onNewRecording={() => setShowNewRecording(true)}
+            onUpdateTask={(id, data) => updateTask({ id, ...data })}
+            onDeleteTask={deleteTask}
+            onMarkDone={markTaskDone}
+            accentColor={accentColor}
+          />
+        ) : tab === 'chat' ? (
+          <AIChatScreen
+            key="chat"
+            messages={messages}
+            isLoading={isLoading}
+            onSend={sendMessage}
+            onClear={clearChat}
+            accentColor={accentColor}
+          />
+        ) : tab === 'calendar' ? (
+          <CalendarScreen key="calendar" tasks={tasks} accentColor={accentColor} />
+        ) : tab === 'stats' ? (
+          <StatsScreen key="stats" tasks={tasks} accentColor={accentColor} />
+        ) : (
+          <ProfileScreen key="profile" theme={theme} onThemeChange={setTheme} accentColor={accentColor} />
         )}
       </div>
+
+      {/* Bottom Navigation */}
+      {!showNewRecording && (
+        <nav className="flex-shrink-0 flex items-end justify-around bg-black border-t border-gray-800 pb-safe"
+             style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)', paddingTop: '8px' }}>
+          <NavBtn icon={<ProfileIcon />} label="פרופיל" active={tab === 'profile'} onClick={() => setTab('profile')} accentColor={accentColor} />
+          <NavBtn icon={<ChatIcon />}    label="AI צ׳אט" active={tab === 'chat'}    onClick={() => setTab('chat')}    accentColor={accentColor} />
+
+          {/* Center home button */}
+          <button
+            onClick={() => setTab('home')}
+            className="flex flex-col items-center -mt-5"
+          >
+            <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-transform active:scale-95"
+                 style={{ background: tab === 'home' ? '#fff' : '#1f2937' }}>
+              <HomeIcon color={tab === 'home' ? '#000' : '#fff'} />
+            </div>
+          </button>
+
+          <NavBtn icon={<CalendarIcon />} label="קלנדר"     active={tab === 'calendar'} onClick={() => setTab('calendar')} accentColor={accentColor} />
+          <NavBtn icon={<StatsIcon />}    label="סטטיסטיקות" active={tab === 'stats'}   onClick={() => setTab('stats')}   accentColor={accentColor} />
+        </nav>
+      )}
     </div>
   );
+}
+
+function NavBtn({ icon, label, active, onClick, accentColor }: {
+  icon: React.ReactNode; label: string; active: boolean; onClick: () => void; accentColor: string;
+}) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-0.5 px-2 py-1 min-w-[52px]">
+      <span style={{ color: active ? accentColor : '#6b7280' }}>{icon}</span>
+      <span className="text-[10px]" style={{ color: active ? accentColor : '#6b7280' }}>{label}</span>
+    </button>
+  );
+}
+
+function HomeIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill={color}>
+      <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+    </svg>
+  );
+}
+function ProfileIcon() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>;
+}
+function ChatIcon() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
+}
+function CalendarIcon() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+}
+function StatsIcon() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
 }

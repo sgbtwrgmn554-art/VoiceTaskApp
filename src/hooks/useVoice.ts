@@ -1,27 +1,28 @@
 import { useState, useRef, useCallback } from 'react';
 
 interface UseVoiceOptions {
+  onTranscript?: (transcript: string) => void;
   onResult?: (transcript: string) => void;
   onError?: (error: string) => void;
   lang?: string;
 }
 
-export function useVoice({ onResult, onError, lang = 'he-IL' }: UseVoiceOptions = {}) {
+export function useVoice({ onTranscript, onResult, onError, lang = 'he-IL' }: UseVoiceOptions = {}) {
   const [isRecording, setIsRecording] = useState(false);
+  const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const isSupported = typeof window !== 'undefined' &&
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
-  const start = useCallback(() => {
+  const startRecording = useCallback(() => {
     if (!isSupported) {
-      onError?.('Web Speech API is not supported in this browser.');
+      onError?.('דפדפן זה אינו תומך בהקלטת קול');
       return;
     }
 
     const SpeechRecognitionClass =
-      (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-      (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognitionClass) return;
 
@@ -35,33 +36,33 @@ export function useVoice({ onResult, onError, lang = 'he-IL' }: UseVoiceOptions 
     recognition.onend = () => setIsRecording(false);
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript;
-      onResult?.(transcript);
+      const text = event.results[0][0].transcript;
+      setTranscript(text);
+      onTranscript?.(text);
+      onResult?.(text);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       setIsRecording(false);
       if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        onError?.(`Speech recognition error: ${event.error}`);
+        onError?.(`שגיאה בהקלטה: ${event.error}`);
       }
     };
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [isSupported, lang, onResult, onError]);
+  }, [isSupported, lang, onTranscript, onResult, onError]);
 
-  const stop = useCallback(() => {
+  const stopRecording = useCallback(() => {
     recognitionRef.current?.stop();
     setIsRecording(false);
   }, []);
 
   const toggle = useCallback(() => {
-    if (isRecording) {
-      stop();
-    } else {
-      start();
-    }
-  }, [isRecording, start, stop]);
+    if (isRecording) stopRecording();
+    else startRecording();
+  }, [isRecording, startRecording, stopRecording]);
 
-  return { isRecording, isSupported, start, stop, toggle };
+  return { isRecording, isSupported, transcript, startRecording, stopRecording, toggle,
+    start: startRecording, stop: stopRecording };
 }

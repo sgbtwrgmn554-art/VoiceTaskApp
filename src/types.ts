@@ -1,20 +1,25 @@
 export type TaskStatus = 'todo' | 'in-progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
-export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly';
+export type TaskCategory = 'כללי' | 'אישי' | 'עבודה' | 'משפחה';
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'every3months' | 'halfyear' | 'yearly';
+export type AppTab = 'home' | 'chat' | 'calendar' | 'stats' | 'profile';
+export type ThemeColor = 'orange' | 'green' | 'purple' | 'blue';
 
 export interface Reminder {
-  date: string;       // YYYY-MM-DD
-  time: string;       // HH:MM
+  date: string;
+  time: string;
   recurrence: RecurrenceType;
-  lastNotified?: string; // ISO string
+  lastNotified?: string;
+  whatsapp?: boolean;
+  whatsappPhone?: string;
 }
 
 export interface Attachment {
   id: string;
   name: string;
-  type: string;       // MIME type
+  type: string;
   size: number;
-  dataUrl: string;    // base64 data URL
+  dataUrl: string;
 }
 
 export interface Task {
@@ -23,10 +28,11 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
+  category: TaskCategory;
   reminder?: Reminder;
   attachments: Attachment[];
-  createdAt: string;  // ISO string
-  updatedAt: string;  // ISO string
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type MessageRole = 'user' | 'assistant';
@@ -53,11 +59,11 @@ export interface ParsedReminder {
   raw: string;
 }
 
-// Tool definitions for AI
 export interface CreateTaskInput {
   title: string;
   description?: string;
   priority?: TaskPriority;
+  category?: TaskCategory;
   status?: TaskStatus;
   reminder?: Reminder;
 }
@@ -68,14 +74,8 @@ export interface UpdateTaskInput {
   description?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
+  category?: TaskCategory;
   reminder?: Reminder;
-}
-
-export interface SetReminderInput {
-  task_id: string;
-  date: string;
-  time: string;
-  recurrence?: RecurrenceType;
 }
 
 export type ToolName =
