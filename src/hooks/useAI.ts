@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import Anthropic from '@anthropic-ai/sdk';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatMessage, ChatAttachment, Task, CreateTaskInput, UpdateTaskInput, SetReminderInput } from '../types';
+import { ChatMessage, ChatAttachment, Task, CreateTaskInput, UpdateTaskInput } from '../types';
 import { loadChat, saveChat } from '../utils/storage';
 
 const client = new Anthropic({
@@ -156,12 +156,12 @@ export function useAI(handlers: ToolHandlers) {
           return JSON.stringify({ success: true, task });
         }
         case 'delete_task': {
-          const { id } = toolInput as unknown as { id: string };
+          const { id } = toolInput as { id: string };
           const success = handlers.deleteTask(id);
           return JSON.stringify({ success });
         }
         case 'set_reminder': {
-          const input = toolInput as unknown as SetReminderInput;
+          const input = toolInput as any;
           const task = handlers.setReminder(input.task_id, {
             date: input.date,
             time: input.time,

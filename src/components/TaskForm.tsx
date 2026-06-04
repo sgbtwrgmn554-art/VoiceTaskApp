@@ -71,7 +71,7 @@ export function TaskForm({ initialTask, onSubmit, onCancel }: TaskFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onSubmit({ title, description, status, priority, reminder, attachments });
+    onSubmit({ title, description, status, priority, category: 'כללי', reminder, attachments });
   };
 
   return (

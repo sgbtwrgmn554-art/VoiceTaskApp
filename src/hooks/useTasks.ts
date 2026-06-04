@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Task, TaskStatus, TaskPriority, Reminder, CreateTaskInput, UpdateTaskInput } from '../types';
+import { Task, TaskStatus, TaskPriority, TaskCategory, Reminder, CreateTaskInput, UpdateTaskInput } from '../types';
 import { loadTasks, saveTasks } from '../utils/storage';
 
 export function useTasks() {
@@ -19,6 +19,7 @@ export function useTasks() {
       description: input.description || '',
       status: input.status || 'todo',
       priority: input.priority || 'medium',
+      category: input.category || 'כללי',
       reminder: input.reminder,
       attachments: [],
       createdAt: now,
