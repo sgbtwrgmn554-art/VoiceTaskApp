@@ -77,30 +77,32 @@ export default function App() {
             accentColor={accentColor}
           />
         ) : tab === 'home' ? (
-          <HomeScreen
-            key="home"
-            tasks={tasks}
-            onNewRecording={() => setShowNewRecording(true)}
-            onUpdateTask={(id, data) => updateTask({ id, ...data })}
-            onDeleteTask={deleteTask}
-            onMarkDone={markTaskDone}
-            accentColor={accentColor}
-          />
+          <div key="home" className="h-full tab-in">
+            <HomeScreen
+              tasks={tasks}
+              onNewRecording={() => setShowNewRecording(true)}
+              onUpdateTask={(id, data) => updateTask({ id, ...data })}
+              onDeleteTask={deleteTask}
+              onMarkDone={markTaskDone}
+              accentColor={accentColor}
+            />
+          </div>
         ) : tab === 'chat' ? (
-          <AIChatScreen
-            key="chat"
-            messages={messages}
-            isLoading={isLoading}
-            onSend={sendMessage}
-            onClear={clearChat}
-            accentColor={accentColor}
-          />
+          <div key="chat" className="h-full tab-in">
+            <AIChatScreen
+              messages={messages}
+              isLoading={isLoading}
+              onSend={sendMessage}
+              onClear={clearChat}
+              accentColor={accentColor}
+            />
+          </div>
         ) : tab === 'calendar' ? (
-          <CalendarScreen key="calendar" tasks={tasks} accentColor={accentColor} />
+          <div key="calendar" className="h-full tab-in"><CalendarScreen tasks={tasks} accentColor={accentColor} /></div>
         ) : tab === 'stats' ? (
-          <StatsScreen key="stats" tasks={tasks} accentColor={accentColor} />
+          <div key="stats" className="h-full tab-in"><StatsScreen tasks={tasks} accentColor={accentColor} /></div>
         ) : (
-          <ProfileScreen key="profile" theme={theme} onThemeChange={setTheme} accentColor={accentColor} />
+          <div key="profile" className="h-full tab-in"><ProfileScreen theme={theme} onThemeChange={setTheme} accentColor={accentColor} /></div>
         )}
       </div>
 

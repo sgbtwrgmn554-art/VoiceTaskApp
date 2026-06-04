@@ -189,7 +189,7 @@ function TaskRow({ task, index, done, onDone, onDelete, menuOpen, onMenuToggle, 
           : { borderColor: 'rgba(255,255,255,0.2)', background: 'transparent' }}
       >
         {done && (
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3" className="scale-pop">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
         )}

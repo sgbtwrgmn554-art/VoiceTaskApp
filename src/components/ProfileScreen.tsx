@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { CSSProperties } from 'react';
 import { ThemeColor } from '../types';
 
 interface Props {
@@ -32,14 +32,17 @@ export default function ProfileScreen({ theme, onThemeChange, accentColor }: Pro
       <div className="bg-gray-900 rounded-2xl p-4 mb-4 fade-up">
         <p className="text-sm font-medium mb-4">🎨 ערכת צבעים</p>
         <div className="grid grid-cols-4 gap-3">
-          {THEMES.map(t => (
+          {THEMES.map((t, i) => (
             <button
               key={t.value}
               onClick={() => onThemeChange(t.value)}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all"
-              style={theme === t.value
-                ? { borderColor: t.color, background: t.color + '22' }
-                : { borderColor: '#374151', background: 'transparent' }}
+              className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all fade-up"
+              style={{
+                animationDelay: `${i * 0.07}s`,
+                ...(theme === t.value
+                  ? { borderColor: t.color, background: t.color + '22' }
+                  : { borderColor: '#374151', background: 'transparent' })
+              }}
             >
               <span className="w-6 h-6 rounded-full" style={{ background: t.color }} />
               <span className="text-xs text-gray-300">{t.label}</span>

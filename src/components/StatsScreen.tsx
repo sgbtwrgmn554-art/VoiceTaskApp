@@ -42,7 +42,7 @@ export default function StatsScreen({ tasks, accentColor }: Props) {
 
       {/* Progress ring */}
       <div className="flex flex-col items-center py-4 fade-up">
-        <div className="relative w-36 h-36">
+        <div className="relative w-36 h-36 bounce-in">
           <svg className="w-full h-full" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
             <circle cx="50" cy="50" r="40" fill="none" stroke="#1f2937" strokeWidth="10" />
             <circle
