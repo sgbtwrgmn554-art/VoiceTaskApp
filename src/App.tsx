@@ -106,24 +106,33 @@ export default function App() {
 
       {/* Bottom Navigation */}
       {!showNewRecording && (
-        <nav className="flex-shrink-0 flex items-end justify-around bg-black border-t border-gray-800 pb-safe"
-             style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)', paddingTop: '8px' }}>
-          <NavBtn icon={<ProfileIcon />} label="פרופיל" active={tab === 'profile'} onClick={() => setTab('profile')} accentColor={accentColor} />
-          <NavBtn icon={<ChatIcon />}    label="AI צ׳אט" active={tab === 'chat'}    onClick={() => setTab('chat')}    accentColor={accentColor} />
+        <nav className="flex-shrink-0 flex items-end justify-around"
+             style={{
+               background: 'rgba(10,10,10,0.95)',
+               backdropFilter: 'blur(20px)',
+               WebkitBackdropFilter: 'blur(20px)',
+               borderTop: '1px solid rgba(255,255,255,0.07)',
+               paddingBottom: 'env(safe-area-inset-bottom, 10px)',
+               paddingTop: '10px',
+             }}>
+          <NavBtn icon={<ProfileIcon />}  label="פרופיל"      active={tab === 'profile'}  onClick={() => setTab('profile')}  accentColor={accentColor} />
+          <NavBtn icon={<ChatIcon />}     label="AI צ׳אט"     active={tab === 'chat'}     onClick={() => setTab('chat')}     accentColor={accentColor} />
 
           {/* Center home button */}
-          <button
-            onClick={() => setTab('home')}
-            className="flex flex-col items-center -mt-5"
-          >
-            <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-transform active:scale-95"
-                 style={{ background: tab === 'home' ? '#fff' : '#1f2937' }}>
+          <button onClick={() => setTab('home')} className="flex flex-col items-center -mt-6 transition-transform active:scale-90">
+            <div className="w-[58px] h-[58px] rounded-full flex items-center justify-center transition-all"
+                 style={{
+                   background: tab === 'home' ? '#fff' : '#1a1a1a',
+                   boxShadow: tab === 'home'
+                     ? '0 4px 20px rgba(255,255,255,0.25)'
+                     : '0 0 0 1px rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.6)',
+                 }}>
               <HomeIcon color={tab === 'home' ? '#000' : '#fff'} />
             </div>
           </button>
 
-          <NavBtn icon={<CalendarIcon />} label="קלנדר"     active={tab === 'calendar'} onClick={() => setTab('calendar')} accentColor={accentColor} />
-          <NavBtn icon={<StatsIcon />}    label="סטטיסטיקות" active={tab === 'stats'}   onClick={() => setTab('stats')}   accentColor={accentColor} />
+          <NavBtn icon={<CalendarIcon />} label="קלנדר"       active={tab === 'calendar'} onClick={() => setTab('calendar')} accentColor={accentColor} />
+          <NavBtn icon={<StatsIcon />}    label="סטטיסטיקות"  active={tab === 'stats'}    onClick={() => setTab('stats')}    accentColor={accentColor} />
         </nav>
       )}
     </div>
@@ -134,9 +143,10 @@ function NavBtn({ icon, label, active, onClick, accentColor }: {
   icon: React.ReactNode; label: string; active: boolean; onClick: () => void; accentColor: string;
 }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-0.5 px-2 py-1 min-w-[52px]">
-      <span style={{ color: active ? accentColor : '#6b7280' }}>{icon}</span>
-      <span className="text-[10px]" style={{ color: active ? accentColor : '#6b7280' }}>{label}</span>
+    <button onClick={onClick}
+      className="flex flex-col items-center gap-1 px-2 py-0.5 min-w-[52px] transition-transform active:scale-90">
+      <span style={{ color: active ? accentColor : '#4b5563' }}>{icon}</span>
+      <span className="text-[10px] font-medium" style={{ color: active ? accentColor : '#4b5563' }}>{label}</span>
     </button>
   );
 }
