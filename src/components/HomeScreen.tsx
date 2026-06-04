@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
 
 export default function HomeScreen({ tasks, onNewRecording, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => { setTimeout(() => setVisible(true), 30); }, []);
 
   const todayTasks = tasks.filter(t => t.status !== 'done');
   const doneTasks  = tasks.filter(t => t.status === 'done');
@@ -36,7 +38,8 @@ export default function HomeScreen({ tasks, onNewRecording, onUpdateTask, onDele
       </div>
 
       {/* Mic button */}
-      <div className="flex items-center justify-center gap-3 py-4">
+      <div className="flex items-center justify-center gap-3 py-4"
+           style={{ opacity: visible ? 1 : 0, transform: visible ? 'none' : 'translateY(-12px)', transition: 'all 0.45s ease' }}>
         {/* Left waves */}
         <div className="flex items-center gap-1">
           {[...Array(9)].map((_, i) => (
