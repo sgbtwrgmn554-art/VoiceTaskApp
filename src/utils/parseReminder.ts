@@ -20,6 +20,15 @@ export function parseReminderFromText(text: string): ParsedReminder | null {
   } else if (/כל חודש|every month|monthly|חודשי/.test(lower)) {
     recurrence = 'monthly';
     found = true;
+  } else if (/כל 3 חודשים|every 3 months|quarterly/.test(lower)) {
+    recurrence = 'every3months';
+    found = true;
+  } else if (/חצי שנה|half.?year|every 6 months/.test(lower)) {
+    recurrence = 'halfyear';
+    found = true;
+  } else if (/כל שנה|every year|yearly|annually/.test(lower)) {
+    recurrence = 'yearly';
+    found = true;
   }
 
   // Parse time
@@ -105,9 +114,9 @@ export function parseReminderFromText(text: string): ParsedReminder | null {
       'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
     };
     for (const [eMonth, monthIdx] of Object.entries(englishMonths)) {
-      const eMatch = lower.match(new RegExp(`(${eMonth})\\s+(\\d{1,2})|( \\d{1,2})\\s+${eMonth}`));
+      const eMatch = lower.match(new RegExp(`(?:${eMonth})\\s+(\\d{1,2})|(\\d{1,2})\\s+(?:${eMonth})`));
       if (eMatch) {
-        const dayStr = eMatch[1] && !isNaN(parseInt(eMatch[1])) ? eMatch[1] : eMatch[2];
+        const dayStr = eMatch[1] || eMatch[2];
         const d = new Date(today.getFullYear(), monthIdx, parseInt(dayStr));
         if (d < today) d.setFullYear(d.getFullYear() + 1);
         date = formatDate(d);

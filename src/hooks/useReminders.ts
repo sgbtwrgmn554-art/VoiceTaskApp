@@ -36,6 +36,17 @@ export function useReminders({ tasks, onUpdateTask }: UseRemindersOptions) {
       } else if (recurrence === 'monthly') {
         const targetDayOfMonth = new Date(date).getDate();
         shouldNotify = now.getDate() === targetDayOfMonth && time === timeStr;
+      } else if (recurrence === 'every3months') {
+        const target = new Date(date);
+        const monthDiff = (now.getFullYear() * 12 + now.getMonth()) - (target.getFullYear() * 12 + target.getMonth());
+        shouldNotify = monthDiff >= 0 && monthDiff % 3 === 0 && now.getDate() === target.getDate() && time === timeStr;
+      } else if (recurrence === 'halfyear') {
+        const target = new Date(date);
+        const monthDiff = (now.getFullYear() * 12 + now.getMonth()) - (target.getFullYear() * 12 + target.getMonth());
+        shouldNotify = monthDiff >= 0 && monthDiff % 6 === 0 && now.getDate() === target.getDate() && time === timeStr;
+      } else if (recurrence === 'yearly') {
+        const target = new Date(date);
+        shouldNotify = now.getMonth() === target.getMonth() && now.getDate() === target.getDate() && time === timeStr;
       }
 
       if (shouldNotify) {
@@ -59,12 +70,17 @@ export function useReminders({ tasks, onUpdateTask }: UseRemindersOptions) {
 }
 
 function showNotification(task: Task) {
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') return;
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(`תזכורת: ${task.title}`, {
+      body: task.description || 'יש לך משימה לבצע!',
+      icon: '/vite.svg',
+      tag: task.id,
+    });
+  }
 
-  new Notification(`תזכורת: ${task.title}`, {
-    body: task.description || 'יש לך משימה לבצע!',
-    icon: '/vite.svg',
-    tag: task.id,
-  });
+  if (task.reminder?.whatsapp && task.reminder?.whatsappPhone) {
+    const phone = task.reminder.whatsappPhone.replace(/\D/g, '');
+    const message = encodeURIComponent(`תזכורת: ${task.title}\n${task.description || 'יש לך משימה לבצע!'}`);
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  }
 }

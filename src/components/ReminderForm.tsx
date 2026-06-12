@@ -11,6 +11,9 @@ const recurrenceOptions: { value: RecurrenceType; label: string }[] = [
   { value: 'daily', label: 'יומי' },
   { value: 'weekly', label: 'שבועי' },
   { value: 'monthly', label: 'חודשי' },
+  { value: 'every3months', label: 'כל 3 חודשים' },
+  { value: 'halfyear', label: 'חצי שנה' },
+  { value: 'yearly', label: 'שנתי' },
 ];
 
 export function ReminderForm({ value, onChange }: ReminderFormProps) {
@@ -109,6 +112,28 @@ export function ReminderForm({ value, onChange }: ReminderFormProps) {
             </button>
           ))}
         </div>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={!!value.whatsapp}
+            onChange={e => onChange({ ...value, whatsapp: e.target.checked })}
+            className="rounded"
+          />
+          <span>שלח גם ב-WhatsApp</span>
+        </label>
+        {value.whatsapp && (
+          <input
+            type="tel"
+            placeholder="מספר טלפון (כולל קידומת מדינה, למשל 972501234567)"
+            value={value.whatsappPhone || ''}
+            onChange={e => onChange({ ...value, whatsappPhone: e.target.value })}
+            className="mt-2 w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+            dir="ltr"
+          />
+        )}
       </div>
     </div>
   );
