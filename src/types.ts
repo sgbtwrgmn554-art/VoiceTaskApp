@@ -2,7 +2,7 @@ export type TaskStatus = 'todo' | 'in-progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskCategory = 'כללי' | 'אישי' | 'עבודה' | 'משפחה';
 export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'every3months' | 'halfyear' | 'yearly';
-export type AppTab = 'home' | 'chat' | 'calendar' | 'stats' | 'profile';
+export type AppTab = 'home' | 'chat' | 'calendar' | 'goals' | 'profile';
 export type ThemeColor = 'orange' | 'green' | 'purple' | 'blue';
 
 export interface Reminder {
@@ -85,3 +85,46 @@ export type ToolName =
   | 'set_reminder'
   | 'mark_task_done'
   | 'list_tasks';
+
+// ── Life OS ──────────────────────────────────────────────────────────────────
+
+export type LifeDomainId =
+  | 'career' | 'health' | 'relationships' | 'finance'
+  | 'growth' | 'family' | 'social' | 'hobbies';
+
+export interface LifeDomain {
+  id: LifeDomainId;
+  label: string;
+  emoji: string;
+  color: string;
+}
+
+export interface Milestone {
+  id: string;
+  title: string;
+  dueDate?: string;
+  completed: boolean;
+  taskId?: string;
+}
+
+export interface Goal {
+  id: string;
+  domainId: LifeDomainId;
+  title: string;
+  description: string;
+  deadline?: string;
+  milestones: Milestone[];
+  status: 'active' | 'completed' | 'paused';
+  createdAt: string;
+}
+
+export interface ClassifyResult {
+  type: 'task' | 'habit' | 'goal' | 'event';
+  title: string;
+  description: string;
+  priority: 'low' | 'medium' | 'high';
+  domain: LifeDomainId | null;
+  dueDate: string | null;
+  dueTime: string | null;
+  recurrence: 'daily' | 'weekly' | 'monthly' | 'none';
+}
