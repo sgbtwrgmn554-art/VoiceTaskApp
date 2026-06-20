@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Task, TaskCategory, RecurrenceType, Attachment } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { Task, TaskCategory, RecurrenceType } from '../types';
 import { useVoice } from '../hooks/useVoice';
 
 interface Props {
@@ -20,29 +20,60 @@ const RECURRENCE: { label: string; value: RecurrenceType }[] = [
 
 const CATEGORIES: TaskCategory[] = ['כללי', 'אישי', 'עבודה', 'משפחה'];
 
+function errorMessage(code: string): string {
+  switch (code) {
+    case 'not-allowed':
+      return 'not-allowed';
+    case 'audio-capture':
+      return 'לא נמצא מיקרופון במכשיר';
+    case 'network':
+      return 'שגיאת רשת — בדוק חיבור אינטרנט';
+    case 'not-supported':
+      return 'הדפדפן אינו תומך בהקלטת קול';
+    default:
+      return code.startsWith('error:') ? `שגיאה: ${code.slice(6)}` : code;
+  }
+}
+
 export default function NewRecordingScreen({ onBack, onSave, accentColor }: Props) {
-  const [text, setText]           = useState('');
-  const [recurrence, setRecur]    = useState<RecurrenceType>('none');
-  const [time, setTime]           = useState('');
-  const [whatsapp, setWhatsapp]   = useState(false);
-  const [phone, setPhone]         = useState('');
-  const [category, setCategory]   = useState<TaskCategory>('כללי');
-  const [error, setError]         = useState('');
+  const [text, setText]         = useState('');
+  const [recurrence, setRecur]  = useState<RecurrenceType>('none');
+  const [time, setTime]         = useState('');
+  const [whatsapp, setWhatsapp] = useState(false);
+  const [phone, setPhone]       = useState('');
+  const [category, setCategory] = useState<TaskCategory>('כללי');
+  const [errorCode, setErrorCode] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { isRecording, startRecording, stopRecording } = useVoice({
+  const { isRecording, isSupported, interimTranscript, startRecording, stopRecording } = useVoice({
     onTranscript: t => setText(p => p ? p + ' ' + t : t),
-    onError: e => setError(e),
+    onInterimTranscript: () => {},
+    onError: code => setErrorCode(code),
   });
 
+  useEffect(() => {
+    if (!isSupported) {
+      textareaRef.current?.focus();
+    }
+  }, [isSupported]);
+
+  const handleMicClick = () => {
+    setErrorCode('');
+    if (isRecording) stopRecording();
+    else startRecording();
+  };
+
   const handleSave = () => {
-    if (!text.trim()) { setError('יש להוסיף כותרת'); return; }
+    if (!text.trim()) { setErrorCode('יש להוסיף כותרת'); return; }
     onSave({
       title: text.trim(), description: '', status: 'todo',
       priority: 'medium', category, attachments: [],
       reminder: time ? { date: new Date().toISOString().split('T')[0], time, recurrence, whatsapp, whatsappPhone: phone } : undefined,
     });
   };
+
+  const isPermissionDenied = errorCode === 'not-allowed';
 
   return (
     <div className="flex flex-col h-full slide-in" style={{ background: '#0a0a0a' }}>
@@ -61,6 +92,32 @@ export default function NewRecordingScreen({ onBack, onSave, accentColor }: Prop
       </div>
 
       <div className="flex-1 scroll-y">
+
+        {/* Permission denied banner */}
+        {isPermissionDenied && (
+          <div className="mx-5 mt-4 rounded-2xl px-4 py-3 flex items-start gap-3 fade-up"
+               style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2" className="mt-0.5 flex-shrink-0">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+            <div>
+              <p className="text-sm font-medium" style={{ color: '#fbbf24' }}>גישה למיקרופון נדחתה</p>
+              <p className="text-xs text-gray-400 mt-0.5">כדי לאפשר: פתח הגדרות דפדפן ← אתרים ← מיקרופון, ואפשר גישה לאתר זה</p>
+            </div>
+          </div>
+        )}
+
+        {/* Unsupported browser banner */}
+        {!isSupported && !isPermissionDenied && (
+          <div className="mx-5 mt-4 rounded-2xl px-4 py-3 flex items-center gap-3 fade-up"
+               style={{ background: 'rgba(107,114,128,0.15)', border: '1px solid rgba(107,114,128,0.25)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <p className="text-sm text-gray-400">הדפדפן שלך אינו תומך בהקלטת קול — הקלד ידנית למטה</p>
+          </div>
+        )}
+
         {/* Mic */}
         <div className="flex flex-col items-center pt-7 pb-5">
           <div className="relative">
@@ -71,8 +128,9 @@ export default function NewRecordingScreen({ onBack, onSave, accentColor }: Prop
               </>
             )}
             <button
-              onClick={isRecording ? stopRecording : startRecording}
-              className="relative w-24 h-24 rounded-full flex items-center justify-center transition-transform active:scale-90"
+              onClick={handleMicClick}
+              disabled={!isSupported}
+              className="relative w-24 h-24 rounded-full flex items-center justify-center transition-transform active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 background: isRecording ? accentColor : '#1a1a1a',
                 boxShadow: isRecording
@@ -85,10 +143,24 @@ export default function NewRecordingScreen({ onBack, onSave, accentColor }: Prop
               </svg>
             </button>
           </div>
+
           <p className="text-sm mt-3" style={{ color: isRecording ? accentColor : '#6b7280' }}>
-            {isRecording ? '● מקליט...' : 'לחץ להקלטה'}
+            {isRecording ? '● מקליט...' : isSupported ? 'לחץ להקלטה' : 'הקלטה אינה זמינה'}
           </p>
-          {error && <p className="text-red-400 text-xs mt-2 px-8 text-center">{error}</p>}
+
+          {/* Interim transcript feedback */}
+          {interimTranscript && (
+            <p className="text-xs italic text-gray-500 mt-2 px-8 text-center fade-up">
+              {interimTranscript}...
+            </p>
+          )}
+
+          {/* Non-permission errors */}
+          {errorCode && !isPermissionDenied && (
+            <p className="text-red-400 text-xs mt-2 px-8 text-center">
+              {errorMessage(errorCode)}
+            </p>
+          )}
         </div>
 
         <div className="px-5 space-y-4 pb-6">
@@ -101,6 +173,7 @@ export default function NewRecordingScreen({ onBack, onSave, accentColor }: Prop
 
           {/* Text */}
           <textarea
+            ref={textareaRef}
             value={text}
             onChange={e => setText(e.target.value)}
             placeholder={'לדוגמה: "להתקשר לדנה מחר ב-10 בבוקר"'}
