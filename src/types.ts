@@ -1,9 +1,9 @@
 export type TaskStatus = 'todo' | 'in-progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
-export type TaskCategory = 'כללי' | 'אישי' | 'עבודה' | 'משפחה';
+export type TaskCategory = string;
 export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'every3months' | 'halfyear' | 'yearly';
 export type AppTab = 'home' | 'chat' | 'calendar' | 'goals' | 'profile';
-export type ThemeColor = 'orange' | 'green' | 'purple' | 'blue';
+export type ThemeColor = 'orange' | 'green' | 'purple' | 'blue' | 'pink' | 'teal' | 'red' | 'yellow';
 
 export interface Reminder {
   date: string;
@@ -88,15 +88,39 @@ export type ToolName =
 
 // ── Life OS ──────────────────────────────────────────────────────────────────
 
-export type LifeDomainId =
-  | 'career' | 'health' | 'relationships' | 'finance'
-  | 'growth' | 'family' | 'social' | 'hobbies';
+export type LifeDomainId = string;
 
 export interface LifeDomain {
   id: LifeDomainId;
   label: string;
   emoji: string;
   color: string;
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+
+export interface AppSettings {
+  // Tasks
+  customCategories: string[];
+  defaultCategory: string;
+  defaultPriority: TaskPriority;
+  defaultSort: 'createdAt' | 'priority' | 'dueDate' | 'title';
+  showCompleted: boolean;
+  // Reminders
+  defaultReminderTime: string;
+  whatsappPhone: string;
+  // Goals / domains
+  customDomains: LifeDomain[];
+  // AI
+  aiLanguage: 'hebrew' | 'english' | 'auto';
+  aiStyle: 'brief' | 'detailed';
+  autoClassify: boolean;
+  chatHistoryLimit: number;
+  // Appearance
+  theme: ThemeColor;
+  // Morning check-in
+  morningCheckInEnabled: boolean;
+  morningCheckInTime: string;
 }
 
 export interface Milestone {

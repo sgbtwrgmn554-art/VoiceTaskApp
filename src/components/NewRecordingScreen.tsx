@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Task, TaskCategory, RecurrenceType, ClassifyResult, LifeDomainId } from '../types';
+import { Task, RecurrenceType, ClassifyResult, LifeDomainId, LifeDomain } from '../types';
 import { useVoice } from '../hooks/useVoice';
 
 type SmartSavePayload =
@@ -10,6 +10,12 @@ interface Props {
   onBack: () => void;
   onSmartSave: (payload: SmartSavePayload) => void;
   accentColor: string;
+  categories?: string[];
+  defaultCategory?: string;
+  defaultReminderTime?: string;
+  savedWhatsappPhone?: string;
+  autoClassify?: boolean;
+  domains?: LifeDomain[];
 }
 
 const RECURRENCE: { label: string; value: RecurrenceType }[] = [
@@ -22,19 +28,13 @@ const RECURRENCE: { label: string; value: RecurrenceType }[] = [
   { label: 'כל שנה',      value: 'yearly' },
 ];
 
-const CATEGORIES: TaskCategory[] = ['כללי', 'אישי', 'עבודה', 'משפחה'];
+const DEFAULT_CATEGORIES = ['כללי', 'אישי', 'עבודה', 'משפחה'];
 
 const TYPE_META: Record<ClassifyResult['type'], { emoji: string; label: string }> = {
   task:  { emoji: '📋', label: 'משימה' },
   habit: { emoji: '🔄', label: 'הרגל' },
   goal:  { emoji: '🎯', label: 'יעד ארוך טווח' },
   event: { emoji: '📅', label: 'אירוע' },
-};
-
-const DOMAIN_LABELS: Record<LifeDomainId, string> = {
-  career: 'קריירה', health: 'בריאות', relationships: 'זוגיות',
-  finance: 'כספים', growth: 'צמיחה', family: 'משפחה',
-  social: 'חברתי', hobbies: 'תחביבים',
 };
 
 function errorMessage(code: string): string {
@@ -46,17 +46,30 @@ function errorMessage(code: string): string {
   }
 }
 
-export default function NewRecordingScreen({ onBack, onSmartSave, accentColor }: Props) {
+export default function NewRecordingScreen({
+  onBack, onSmartSave, accentColor,
+  categories = DEFAULT_CATEGORIES,
+  defaultCategory = 'כללי',
+  defaultReminderTime = '',
+  savedWhatsappPhone = '',
+  autoClassify = true,
+  domains = [],
+}: Props) {
   const [text, setText]               = useState('');
   const [recurrence, setRecur]        = useState<RecurrenceType>('none');
-  const [time, setTime]               = useState('');
+  const [time, setTime]               = useState(defaultReminderTime);
   const [whatsapp, setWhatsapp]       = useState(false);
-  const [phone, setPhone]             = useState('');
-  const [category, setCategory]       = useState<TaskCategory>('כללי');
+  const [phone, setPhone]             = useState(savedWhatsappPhone);
+  const [category, setCategory]       = useState(defaultCategory);
   const [errorCode, setErrorCode]     = useState('');
   const [classifying, setClassifying] = useState(false);
   const [preview, setPreview]         = useState<ClassifyResult | null>(null);
   const [showManual, setShowManual]   = useState(false);
+  const [showVideo, setShowVideo]     = useState(false);
+  const [videoUrl, setVideoUrl]       = useState('');
+  const [videoGoal, setVideoGoal]     = useState('');
+  const [videoResult, setVideoResult] = useState<null | { topic: string; tasks: { title: string; description: string; priority: string }[]; suggestedGoal: string | null; platform: string }>(null);
+  const [analyzingVideo, setAnalyzingVideo] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef     = useRef<HTMLInputElement>(null);
 
@@ -64,7 +77,7 @@ export default function NewRecordingScreen({ onBack, onSmartSave, accentColor }:
     onTranscript: t => {
       const newText = text ? text + ' ' + t : t;
       setText(newText);
-      classify(newText);
+      if (autoClassify) classify(newText);
     },
     onError: code => setErrorCode(code),
   });
@@ -91,6 +104,27 @@ export default function NewRecordingScreen({ onBack, onSmartSave, accentColor }:
       // Silently fall back — user can still save manually
     } finally {
       setClassifying(false);
+    }
+  };
+
+  const analyzeVideo = async () => {
+    const url = videoUrl.trim();
+    if (!url) return;
+    setAnalyzingVideo(true);
+    setVideoResult(null);
+    try {
+      const res = await fetch('/api/video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, userGoal: videoGoal.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      const result = await res.json();
+      setVideoResult(result);
+    } catch {
+      setErrorCode('שגיאה בניתוח הסרטון');
+    } finally {
+      setAnalyzingVideo(false);
     }
   };
 
@@ -130,10 +164,7 @@ export default function NewRecordingScreen({ onBack, onSmartSave, accentColor }:
         description: preview?.description || '',
         status: 'todo',
         priority: preview?.priority || 'medium',
-        category: preview?.domain
-          ? ({ career: 'עבודה', health: 'אישי', relationships: 'אישי', finance: 'עבודה',
-               growth: 'אישי', family: 'משפחה', social: 'אישי', hobbies: 'אישי' } as Record<LifeDomainId, TaskCategory>)[preview.domain as LifeDomainId] || category
-          : category,
+        category,
         attachments: [],
         reminder: (time || preview?.dueTime)
           ? { date: preview?.dueDate || new Date().toISOString().split('T')[0], time: time || preview!.dueTime!, recurrence: recur, whatsapp, whatsappPhone: phone }
@@ -268,7 +299,7 @@ export default function NewRecordingScreen({ onBack, onSmartSave, accentColor }:
                   )}
                   {preview.domain && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af' }}>
-                      {DOMAIN_LABELS[preview.domain as LifeDomainId]}
+                      {domains.find(d => d.id === preview.domain)?.label ?? preview.domain}
                     </span>
                   )}
                 </div>
@@ -332,7 +363,7 @@ export default function NewRecordingScreen({ onBack, onSmartSave, accentColor }:
               <div>
                 <p className="text-xs text-gray-500 mb-2.5">קטגוריה</p>
                 <div className="flex gap-2 flex-wrap">
-                  {CATEGORIES.map(cat => (
+                  {categories.map(cat => (
                     <button key={cat} onClick={() => setCategory(cat)}
                       className="px-3.5 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95"
                       style={category === cat
@@ -413,8 +444,95 @@ export default function NewRecordingScreen({ onBack, onSmartSave, accentColor }:
             </>
           )}
 
+          {/* ── Video Link Analyzer ── */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <button
+              onClick={() => setShowVideo(!showVideo)}
+              className="w-full flex items-center justify-between px-4 py-3.5 text-sm text-gray-300">
+              <span className="flex items-center gap-2">
+                <span>🎬</span>
+                <span>ניתוח סרטון (YouTube / TikTok / Instagram)</span>
+              </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"
+                   className="transition-transform" style={{ transform: showVideo ? 'rotate(90deg)' : 'none' }}>
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+
+            {showVideo && (
+              <div className="px-4 pb-4 space-y-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="pt-3">
+                  <input
+                    type="url"
+                    value={videoUrl}
+                    onChange={e => setVideoUrl(e.target.value)}
+                    placeholder="https://youtu.be/... או tiktok.com/..."
+                    dir="ltr"
+                    className="w-full text-white text-sm rounded-xl px-3 py-2.5 outline-none"
+                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={videoGoal}
+                  onChange={e => setVideoGoal(e.target.value)}
+                  placeholder="מה אתה רוצה להשיג מהסרטון? (אופציונלי)"
+                  className="w-full text-white text-sm rounded-xl px-3 py-2.5 outline-none"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                />
+                <button
+                  onClick={analyzeVideo}
+                  disabled={!videoUrl.trim() || analyzingVideo}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold text-black transition-all active:scale-95 disabled:opacity-50"
+                  style={{ background: accentColor }}>
+                  {analyzingVideo
+                    ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> מנתח...</span>
+                    : '✨ נתח סרטון'}
+                </button>
+
+                {videoResult && (
+                  <div className="fade-up space-y-3 pt-1">
+                    <div className="rounded-xl px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      <p className="text-[10px] text-gray-500 mb-1">נושא הסרטון</p>
+                      <p className="text-sm text-white">{videoResult.topic}</p>
+                    </div>
+
+                    {videoResult.suggestedGoal && (
+                      <div className="rounded-xl px-3 py-2.5" style={{ background: accentColor + '15', border: `1px solid ${accentColor}30` }}>
+                        <p className="text-[10px] mb-1" style={{ color: accentColor }}>🎯 יעד מוצע</p>
+                        <p className="text-sm text-white">{videoResult.suggestedGoal}</p>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-500">משימות מוצעות:</p>
+                    {videoResult.tasks.map((t, i) => (
+                      <div key={i}
+                           className="rounded-xl px-3 py-2.5 flex items-start gap-3"
+                           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div className="flex-1">
+                          <p className="text-sm text-white font-medium">{t.title}</p>
+                          {t.description && <p className="text-[11px] text-gray-500 mt-0.5">{t.description}</p>}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setText(t.title);
+                            if (autoClassify) classify(t.title);
+                            setShowVideo(false);
+                          }}
+                          className="flex-shrink-0 text-[11px] px-2.5 py-1 rounded-full font-medium text-black"
+                          style={{ background: accentColor }}>
+                          הוסף
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Examples */}
-          {!text && (
+          {!text && !showVideo && (
             <div>
               <p className="text-xs text-gray-600 mb-2">💡 דוגמאות:</p>
               {[

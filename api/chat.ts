@@ -4,30 +4,30 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const SYSTEM_PROMPT = `You are VoiceTask AI, an intelligent task management assistant that speaks both Hebrew and English.
-You are an agent that can take actions in the user's task management app.
+function buildSystemPrompt(aiLanguage: string, aiStyle: string): string {
+  const langInstruction =
+    aiLanguage === 'hebrew'  ? 'Always respond in Hebrew (עברית) only.' :
+    aiLanguage === 'english' ? 'Always respond in English only.' :
+    'Respond in the same language the user writes in (Hebrew if they write Hebrew, English if they write English).';
 
-You help users manage their tasks by:
-- Creating new tasks
-- Updating existing tasks
-- Deleting tasks
-- Setting reminders
-- Marking tasks as done
-- Listing and filtering tasks
+  const styleInstruction =
+    aiStyle === 'brief'
+      ? 'Keep responses short and to the point — 1-2 sentences maximum unless a list is needed.'
+      : 'Give complete, helpful responses with context and details.';
 
-When a user asks you to do something with their tasks, use the appropriate tool to perform the action.
-After performing an action, confirm what you did in a friendly way in both Hebrew and English.
+  return `You are VoiceTask AI — an intelligent Personal Life OS assistant.
+${langInstruction}
+${styleInstruction}
 
-For example:
-- "יצרתי את המשימה בהצלחה! ✅ Task created successfully!"
-- "המשימה עודכנה. Task has been updated."
-- "הגדרתי תזכורת ל... Reminder set for..."
+You can take actions in the user's task management app:
+- Create, update, delete tasks
+- Set reminders
+- Mark tasks as done
+- List and filter tasks
 
-Be concise, helpful, and always confirm the actions you take.
-When listing tasks, present them in a clear, organized way.
-If you can't find a task the user is asking about, ask for clarification.
-
-Current date: ${new Date().toLocaleDateString('he-IL')}`;
+After performing an action, confirm what you did in a friendly way.
+Be helpful. Current date: ${new Date().toLocaleDateString('he-IL')}`;
+}
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -221,8 +221,13 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = req.body ?? await readBody(req);
-    const { messages, tasks } = body as { messages: ChatApiMessage[]; tasks: Task[] };
+    const {
+      messages, tasks,
+      aiLanguage = 'hebrew',
+      aiStyle = 'detailed',
+    } = body as { messages: ChatApiMessage[]; tasks: Task[]; aiLanguage?: string; aiStyle?: string };
 
+    const systemPrompt = buildSystemPrompt(aiLanguage, aiStyle);
     const apiMessages = buildApiMessages(messages);
     const toolActions: ToolAction[] = [];
     const mutationNames = new Set(['create_task', 'update_task', 'delete_task', 'set_reminder', 'mark_task_done']);
@@ -230,7 +235,7 @@ export default async function handler(req: any, res: any) {
     let response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       tools: TOOLS,
       messages: apiMessages,
     });
@@ -257,7 +262,7 @@ export default async function handler(req: any, res: any) {
       response = await client.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 4096,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt,
         tools: TOOLS,
         messages: apiMessages,
       });

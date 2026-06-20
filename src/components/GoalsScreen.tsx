@@ -1,19 +1,11 @@
 import React, { useState } from 'react';
 import { Goal, LifeDomain, LifeDomainId, Milestone } from '../types';
 
-const DOMAINS: LifeDomain[] = [
-  { id: 'career',        label: 'קריירה',   emoji: '💼', color: '#3b82f6' },
-  { id: 'health',        label: 'בריאות',   emoji: '💪', color: '#22c55e' },
-  { id: 'relationships', label: 'זוגיות',   emoji: '❤️', color: '#ec4899' },
-  { id: 'finance',       label: 'כספים',    emoji: '💰', color: '#f59e0b' },
-  { id: 'growth',        label: 'צמיחה',    emoji: '🌱', color: '#a855f7' },
-  { id: 'family',        label: 'משפחה',    emoji: '👨‍👩‍👧', color: '#f97316' },
-  { id: 'social',        label: 'חברתי',    emoji: '👥', color: '#06b6d4' },
-  { id: 'hobbies',       label: 'תחביבים',  emoji: '🎨', color: '#84cc16' },
-];
+const FALLBACK_DOMAIN: LifeDomain = { id: 'other', label: 'אחר', emoji: '⭐', color: '#6b7280' };
 
 interface Props {
   goals: Goal[];
+  domains: LifeDomain[];
   generatingFor: string | null;
   onCreateGoal: (title: string, domainId: LifeDomainId, description: string, deadline?: string) => Goal;
   onToggleMilestone: (goalId: string, milestoneId: string) => void;
@@ -25,7 +17,7 @@ interface Props {
 
 type View = { kind: 'domains' } | { kind: 'domain'; domainId: LifeDomainId } | { kind: 'goal'; goalId: string } | { kind: 'new'; domainId: LifeDomainId };
 
-export default function GoalsScreen({ goals, generatingFor, onCreateGoal, onToggleMilestone, onGenerateMilestones, onMilestoneToTask, onDeleteGoal, accentColor }: Props) {
+export default function GoalsScreen({ goals, domains, generatingFor, onCreateGoal, onToggleMilestone, onGenerateMilestones, onMilestoneToTask, onDeleteGoal, accentColor }: Props) {
   const [view, setView] = useState<View>({ kind: 'domains' });
   const [newTitle, setNewTitle] = useState('');
   const [newDeadline, setNewDeadline] = useState('');
@@ -59,7 +51,7 @@ export default function GoalsScreen({ goals, generatingFor, onCreateGoal, onTogg
         </div>
         <div className="flex-1 scroll-y px-4 py-4">
           <div className="grid grid-cols-2 gap-3">
-            {DOMAINS.map(domain => {
+            {domains.map(domain => {
               const domainGoals = goals.filter(g => g.domainId === domain.id && g.status === 'active');
               const done = domainGoals.reduce((acc, g) => acc + g.milestones.filter(m => m.completed).length, 0);
               const total = domainGoals.reduce((acc, g) => acc + g.milestones.length, 0);
@@ -102,7 +94,7 @@ export default function GoalsScreen({ goals, generatingFor, onCreateGoal, onTogg
 
   // ── DOMAIN GOALS VIEW ───────────────────────────────────────────────────────
   if (view.kind === 'domain') {
-    const domain = DOMAINS.find(d => d.id === view.domainId)!;
+    const domain = domains.find(d => d.id === view.domainId) ?? FALLBACK_DOMAIN;
     const domainGoals = goals.filter(g => g.domainId === view.domainId);
     return (
       <div className="flex flex-col h-full" style={{ background: '#0a0a0a' }}>
@@ -175,7 +167,7 @@ export default function GoalsScreen({ goals, generatingFor, onCreateGoal, onTogg
 
   // ── NEW GOAL FORM ───────────────────────────────────────────────────────────
   if (view.kind === 'new') {
-    const domain = DOMAINS.find(d => d.id === view.domainId)!;
+    const domain = domains.find(d => d.id === view.domainId) ?? FALLBACK_DOMAIN;
     return (
       <div className="flex flex-col h-full" style={{ background: '#0a0a0a' }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-4"
@@ -236,7 +228,7 @@ export default function GoalsScreen({ goals, generatingFor, onCreateGoal, onTogg
   if (view.kind === 'goal') {
     const goal = goals.find(g => g.id === view.goalId);
     if (!goal) { setView({ kind: 'domains' }); return null; }
-    const domain = DOMAINS.find(d => d.id === goal.domainId)!;
+    const domain = domains.find(d => d.id === goal.domainId) ?? FALLBACK_DOMAIN;
     const done = goal.milestones.filter(m => m.completed).length;
     const total = goal.milestones.length;
     const isGenerating = generatingFor === goal.id;

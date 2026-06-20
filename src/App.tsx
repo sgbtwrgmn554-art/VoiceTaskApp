@@ -4,6 +4,7 @@ import { useTasks } from './hooks/useTasks';
 import { useAI } from './hooks/useAI';
 import { useReminders } from './hooks/useReminders';
 import { useGoals } from './hooks/useGoals';
+import { useSettings } from './hooks/useSettings';
 import HomeScreen from './components/HomeScreen';
 import NewRecordingScreen from './components/NewRecordingScreen';
 import AIChatScreen from './components/AIChatScreen';
@@ -12,19 +13,45 @@ import GoalsScreen from './components/GoalsScreen';
 import AuthScreen from './components/AuthScreen';
 import ProfileScreen from './components/ProfileScreen';
 
+const ACCENT_COLORS: Record<ThemeColor, string> = {
+  orange: '#f97316',
+  green:  '#22c55e',
+  purple: '#a855f7',
+  blue:   '#3b82f6',
+  pink:   '#ec4899',
+  teal:   '#14b8a6',
+  red:    '#ef4444',
+  yellow: '#eab308',
+};
+
 export default function App() {
   const [tab, setTab] = useState<AppTab>('home');
-  const [theme, setTheme] = useState<ThemeColor>('green');
   const [showNewRecording, setShowNewRecording] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(() => {
     const saved = localStorage.getItem('vt_user');
     return saved ? JSON.parse(saved) : null;
   });
 
+  const {
+    settings,
+    updateSettings,
+    addCategory,
+    removeCategory,
+    renameCategory,
+    addDomain,
+    updateDomain,
+    removeDomain,
+  } = useSettings();
+
   const handleAuth = async (email: string, _password: string, _isRegister: boolean) => {
     const u = { email };
     localStorage.setItem('vt_user', JSON.stringify(u));
     setUser(u);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('vt_user');
+    setUser(null);
   };
 
   const { tasks, createTask, updateTask, deleteTask, markTaskDone, setReminder } = useTasks();
@@ -50,16 +77,13 @@ export default function App() {
     setReminder: (taskId: string, reminder: { date: string; time: string; recurrence: string }) =>
       setReminder(taskId, { ...reminder, recurrence: reminder.recurrence as Reminder['recurrence'] }),
     tasks,
+    aiLanguage: settings.aiLanguage,
+    aiStyle: settings.aiStyle,
   };
 
   const { messages, isLoading, sendMessage, clearChat } = useAI(aiHandlers);
 
-  const accentColor = {
-    orange: '#f97316',
-    green:  '#22c55e',
-    purple: '#a855f7',
-    blue:   '#3b82f6',
-  }[theme];
+  const accentColor = ACCENT_COLORS[settings.theme] ?? '#22c55e';
 
   if (!user) {
     return (
@@ -89,6 +113,12 @@ export default function App() {
               }
             }}
             accentColor={accentColor}
+            categories={settings.customCategories}
+            defaultCategory={settings.defaultCategory}
+            defaultReminderTime={settings.defaultReminderTime}
+            savedWhatsappPhone={settings.whatsappPhone}
+            autoClassify={settings.autoClassify}
+            domains={settings.customDomains}
           />
         ) : tab === 'home' ? (
           <div key="home" className="h-full tab-in">
@@ -119,6 +149,7 @@ export default function App() {
           <div key="goals" className="h-full tab-in">
             <GoalsScreen
               goals={goals}
+              domains={settings.customDomains}
               generatingFor={generatingFor}
               onCreateGoal={createGoal}
               onToggleMilestone={toggleMilestone}
@@ -130,7 +161,19 @@ export default function App() {
           </div>
         ) : (
           <div key="profile" className="h-full tab-in">
-            <ProfileScreen theme={theme} onThemeChange={setTheme} accentColor={accentColor} />
+            <ProfileScreen
+              settings={settings}
+              accentColor={accentColor}
+              onUpdateSettings={updateSettings}
+              onAddCategory={addCategory}
+              onRemoveCategory={removeCategory}
+              onRenameCategory={renameCategory}
+              onAddDomain={addDomain}
+              onUpdateDomain={updateDomain}
+              onRemoveDomain={removeDomain}
+              onThemeChange={(t) => updateSettings({ theme: t })}
+              onLogout={handleLogout}
+            />
           </div>
         )}
       </div>

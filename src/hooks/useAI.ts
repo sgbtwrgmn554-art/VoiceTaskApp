@@ -15,6 +15,8 @@ interface ToolHandlers {
   markTaskDone: (id: string) => Task | null;
   setReminder: (taskId: string, reminder: { date: string; time: string; recurrence: string }) => Task | null;
   tasks: Task[];
+  aiLanguage?: 'hebrew' | 'english' | 'auto';
+  aiStyle?: 'brief' | 'detailed';
 }
 
 export function useAI(handlers: ToolHandlers) {
@@ -98,6 +100,8 @@ export function useAI(handlers: ToolHandlers) {
         body: JSON.stringify({
           messages: apiMessages,
           tasks: handlers.tasks,
+          aiLanguage: handlers.aiLanguage ?? 'hebrew',
+          aiStyle: handlers.aiStyle ?? 'detailed',
         }),
       });
 
