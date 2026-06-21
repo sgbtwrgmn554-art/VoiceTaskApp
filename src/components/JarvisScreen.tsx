@@ -69,6 +69,16 @@ function fmtTime(sec: number): string {
   return `${m}:${s}`;
 }
 
+const ENERGY_LABELS = ['', '😴 עייף', '🥱 נמוך', '😐 בסדר', '💪 טוב', '🔥 מלא אנרגיה'];
+const ENERGY_ICONS  = ['', '😴', '🥱', '😐', '💪', '🔥'];
+
+const QUICK_PROMPTS = [
+  { label: 'מה עלי לעשות עכשיו?', icon: '🎯' },
+  { label: 'בנה לי לו"ז להיום', icon: '📅' },
+  { label: 'בדוק את ההרגלים שלי', icon: '✅' },
+  { label: 'מה המצב עם היעדים שלי?', icon: '🏆' },
+];
+
 export default function JarvisScreen({
   tasks, goals, habits, habitLogs = [], reflections = [], desires = [],
   aiLanguage = 'hebrew', jarvisMode = 'coach', appearanceLevel = 'balanced',
@@ -86,12 +96,15 @@ export default function JarvisScreen({
   const [focusMinutes, setFocusMinutes]   = useState(25);
   const [pendingImage, setPendingImage]   = useState<{ base64: string; mediaType: string } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [energyLevel, setEnergyLevel]     = useState(0);   // 0 = not set, 1-5
+  const [textInput, setTextInput]         = useState('');
   const { speak, stop, isSupported: ttsSupported } = useSpeech();
   const recognitionRef = useRef<any>(null);
   const scrollRef      = useRef<HTMLDivElement>(null);
   const onResultRef    = useRef<(text: string) => void>(() => {});
   const focusTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const photoInputRef  = useRef<HTMLInputElement>(null);
+  const textInputRef   = useRef<HTMLInputElement>(null);
 
   const addMsg = useCallback((role: 'jarvis' | 'user', text: string) => {
     setMessages(prev => [...prev, { role, text }]);
@@ -126,7 +139,11 @@ export default function JarvisScreen({
     addMsg('user', image ? `📷 ${question || 'תנתח את התמונה'}` : question);
     setState('thinking');
     try {
-      const body: Record<string, unknown> = { question, tasks, habits, goals, habitLogs, desires, language: aiLanguage, jarvisMode, appearanceLevel };
+      const body: Record<string, unknown> = {
+        question, tasks, habits, goals, habitLogs, desires,
+        language: aiLanguage, jarvisMode, appearanceLevel,
+        energyLevel: energyLevel || undefined,
+      };
       if (image) { body.imageBase64 = image.base64; body.imageMediaType = image.mediaType; }
       const res = await fetch('/api/jarvis', {
         method: 'POST',
@@ -155,7 +172,8 @@ export default function JarvisScreen({
       addMsg('jarvis', err);
       speakThen(err, () => startListening());
     }
-  }, [addMsg, tasks, habits, goals, habitLogs, desires, aiLanguage, jarvisMode, appearanceLevel, speakThen, startListening]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addMsg, tasks, habits, goals, habitLogs, desires, aiLanguage, jarvisMode, appearanceLevel, energyLevel, speakThen, startListening]);
 
   const handleVoiceResult = useCallback((text: string) => {
     const lower = text.trim().toLowerCase();
@@ -230,7 +248,7 @@ export default function JarvisScreen({
       if (action.type === 'mark_done') {
         const relatedGoal = goals.find(g => g.status === 'active' && g.title.toLowerCase().split(' ').some(w => action.taskTitle.toLowerCase().includes(w)));
         onMarkTaskDone(action.taskId);
-        confirmDone(relatedGoal ? `סיימת! זה מקדם אותך לעבר הייעד: "${relatedGoal.title}" 🎯` : 'בוצע! כל צעד קטן מצטבר 💪');
+        confirmDone(relatedGoal ? `סיימת! זה מקדם אותך לעבר הייעד: "${relatedGoal.title}" 🎯` : 'בוצע! כל צעק קטן מצטבר 💪');
       } else if (action.type === 'create_task') {
         onCreateTask({ title: action.title, priority: action.priority, date: action.date, time: action.time });
         confirmDone('נוצר! רוצה שאוסיף עוד דברים קשורים לנושא?');
@@ -316,14 +334,14 @@ export default function JarvisScreen({
       const res = await fetch('/api/briefing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tasks, goals, habits, language: aiLanguage }),
+        body: JSON.stringify({ tasks, goals, habits, language: aiLanguage, energyLevel: energyLevel || undefined, desires }),
       });
       const data = await res.json();
       speakAndListen(data.text || 'בוקר טוב! אפשר לשאול אותי שאלות.');
     } catch {
       speakAndListen('שלום! אני ג\'ארוויס. אפשר לשאול אותי שאלות.');
     }
-  }, [tasks, goals, habits, aiLanguage, speakAndListen]);
+  }, [tasks, goals, habits, aiLanguage, energyLevel, desires, speakAndListen]);
 
   const handleMicPress = () => {
     if (state === 'focus') return;
@@ -338,6 +356,14 @@ export default function JarvisScreen({
     } else {
       startListening();
     }
+  };
+
+  const handleSendText = () => {
+    const q = textInput.trim();
+    if (!q || state === 'thinking' || state === 'focus') return;
+    setTextInput('');
+    if (!started) setStarted(true);
+    sendQuestion(q);
   };
 
   const handlePhotoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -363,7 +389,7 @@ export default function JarvisScreen({
   }, []);
 
   const statusLabel: Record<JarvisState, string> = {
-    idle:       'לחץ על המיק לשאלה',
+    idle:       SpeechRecognitionAPI ? 'לחץ על המיק לשאלה' : 'הקלד שאלה למטה',
     loading:    'טוען...',
     speaking:   'מדבר...',
     listening:  'מאזין...',
@@ -403,7 +429,6 @@ export default function JarvisScreen({
 
   const isFocusAction = pendingAction?.type === 'start_focus';
 
-  // Focus ring math
   const focusProgress = focusData ? (focusData.totalSec - focusData.leftSec) / focusData.totalSec : 0;
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
@@ -420,7 +445,9 @@ export default function JarvisScreen({
         </button>
         <div className="text-center">
           <p className="text-sm font-bold tracking-widest text-white" style={{ letterSpacing: '0.2em' }}>J.A.R.V.I.S</p>
-          <p className="text-[10px] text-gray-600 tracking-wider mt-0.5">עוזר אישי</p>
+          <p className="text-[10px] text-gray-600 tracking-wider mt-0.5">
+            {energyLevel > 0 ? ENERGY_LABELS[energyLevel] : 'עוזר אישי'}
+          </p>
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -479,7 +506,7 @@ export default function JarvisScreen({
       ) : (
         <>
           {/* Orb */}
-          <div className="flex-shrink-0 flex items-center justify-center py-8">
+          <div className="flex-shrink-0 flex items-center justify-center py-6">
             <div className="relative">
               {(state === 'listening' || state === 'speaking' || state === 'confirming') && (
                 <>
@@ -488,7 +515,7 @@ export default function JarvisScreen({
                 </>
               )}
               <div
-                className="w-28 h-28 rounded-full flex items-center justify-center transition-all duration-500"
+                className="w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500"
                 style={{
                   background: `radial-gradient(circle at 40% 35%, ${pulseColor}66, ${pulseColor}11)`,
                   boxShadow: `0 0 40px ${pulseColor}44, inset 0 0 20px ${pulseColor}22`,
@@ -500,11 +527,11 @@ export default function JarvisScreen({
                     {[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-white opacity-60 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
                   </div>
                 ) : state === 'confirming' ? (
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" opacity={0.9}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" opacity={0.9}>
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="#f59e0b" stroke="none"/>
                   </svg>
                 ) : (
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="white" opacity={0.8}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" opacity={0.8}>
                     <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
                   </svg>
                 )}
@@ -513,7 +540,7 @@ export default function JarvisScreen({
           </div>
 
           {/* Status */}
-          <p className="text-center text-xs text-gray-500 tracking-wider mb-4 flex-shrink-0">{statusLabel[state]}</p>
+          <p className="text-center text-xs text-gray-500 tracking-wider mb-2 flex-shrink-0">{statusLabel[state]}</p>
 
           {/* Shortcuts panel */}
           {showShortcuts && (
@@ -522,11 +549,16 @@ export default function JarvisScreen({
                 <p className="text-xs font-bold text-gray-300 tracking-widest">⚡ קיצורי דרך קוליים</p>
                 <button onClick={() => setShowShortcuts(false)} className="text-gray-500 hover:text-white transition-colors text-xl leading-none">×</button>
               </div>
-              <div className="overflow-y-auto max-h-52 p-3 space-y-1.5">
+              <div className="overflow-y-auto max-h-40 p-3 space-y-1.5">
                 {voiceShortcuts.length === 0 ? (
                   <p className="text-center text-xs text-gray-600 py-3">אין קיצורים — הוסף בהגדרות ← ⚡ קיצורי דרך</p>
                 ) : voiceShortcuts.map(sc => (
-                  <div key={sc.id} className="flex items-start gap-3 px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <button
+                    key={sc.id}
+                    onClick={() => { setShowShortcuts(false); if (!started) setStarted(true); sendQuestion(sc.prompt); }}
+                    className="w-full flex items-start gap-3 px-3 py-2 rounded-xl text-right transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.04)' }}
+                  >
                     <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: accentColor + '22', color: accentColor }}>
                       {sc.trigger}
                     </span>
@@ -534,7 +566,7 @@ export default function JarvisScreen({
                       <p className="text-xs text-gray-200 font-medium">{sc.description}</p>
                       <p className="text-[10px] text-gray-600 truncate mt-0.5">{sc.prompt}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -542,14 +574,60 @@ export default function JarvisScreen({
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 pb-2">
+
+            {/* Pre-start idle view */}
             {!started && messages.length === 0 && (
-              <div className="text-center mt-6 fade-up">
-                <p className="text-gray-600 text-sm">לחץ "הפעל" כדי לקבל סיכום יומי</p>
-                <p className="text-gray-700 text-xs mt-1">ג'ארוויס יקרא לך מה יש לך ויחכה לשאלות</p>
-                <p className="text-gray-700 text-xs mt-1">לחץ 📋 לסיכום שבועי • לחץ ⚡ לקיצורים</p>
+              <div className="fade-up space-y-4 pt-2">
+
+                {/* Energy level picker */}
+                <div className="rounded-2xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <p className="text-xs text-gray-500 mb-2.5 text-center">מה רמת האנרגיה שלך היום?</p>
+                  <div className="flex items-center justify-between gap-1">
+                    {[1,2,3,4,5].map(lvl => (
+                      <button
+                        key={lvl}
+                        onClick={() => setEnergyLevel(energyLevel === lvl ? 0 : lvl)}
+                        className="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all active:scale-90"
+                        style={{
+                          background: energyLevel === lvl ? accentColor + '22' : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${energyLevel === lvl ? accentColor + '55' : 'rgba(255,255,255,0.06)'}`,
+                        }}
+                      >
+                        <span className="text-xl">{ENERGY_ICONS[lvl]}</span>
+                        <span className="text-[9px] text-gray-600">{lvl}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {energyLevel > 0 && (
+                    <p className="text-center text-xs mt-2" style={{ color: accentColor }}>
+                      {ENERGY_LABELS[energyLevel]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Quick prompts */}
+                <div>
+                  <p className="text-xs text-gray-600 mb-2 px-1">שאלות מהירות</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {QUICK_PROMPTS.map(qp => (
+                      <button
+                        key={qp.label}
+                        onClick={() => { setStarted(true); sendQuestion(qp.label); }}
+                        className="flex items-center gap-2 rounded-2xl px-3 py-2.5 text-right transition-all active:scale-95"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                      >
+                        <span className="text-base flex-shrink-0">{qp.icon}</span>
+                        <span className="text-xs text-gray-300 leading-tight">{qp.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Shortcuts hint */}
                 {voiceShortcuts.length > 0 && (
-                  <div className="mt-4 mx-2 space-y-1">
-                    {voiceShortcuts.map(sc => (
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-600 px-1">⚡ קיצורים שלך</p>
+                    {voiceShortcuts.slice(0, 3).map(sc => (
                       <div key={sc.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: accentColor + '18', color: accentColor }}>
                           {sc.trigger}
@@ -557,14 +635,19 @@ export default function JarvisScreen({
                         <span className="text-[10px] text-gray-600">{sc.description}</span>
                       </div>
                     ))}
+                    {voiceShortcuts.length > 3 && (
+                      <p className="text-[10px] text-gray-700 px-1">+{voiceShortcuts.length - 3} נוספים — לחץ ⚡</p>
+                    )}
                   </div>
                 )}
               </div>
             )}
+
+            {/* Chat messages */}
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
                 <div
-                  className="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm"
+                  className="max-w-[82%] rounded-2xl px-4 py-2.5 text-sm"
                   style={m.role === 'jarvis'
                     ? { background: accentColor + '18', border: `1px solid ${accentColor}30`, color: '#e5e7eb' }
                     : { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#9ca3af' }
@@ -628,8 +711,38 @@ export default function JarvisScreen({
             </div>
           )}
 
-          {/* Controls */}
-          <div className="flex-shrink-0 px-6 pb-8 pt-4 flex items-center gap-4">
+          {/* Text input row */}
+          <div className="flex-shrink-0 px-4 pb-2">
+            <div className="flex items-center gap-2 rounded-2xl px-3 py-2"
+                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}>
+              <input
+                ref={textInputRef}
+                type="text"
+                value={textInput}
+                onChange={e => setTextInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSendText(); }}
+                placeholder="הקלד שאלה..."
+                disabled={state === 'thinking' || state === 'focus'}
+                className="flex-1 bg-transparent text-white text-sm outline-none placeholder-gray-600"
+                dir="rtl"
+              />
+              {textInput.trim() && (
+                <button
+                  onClick={handleSendText}
+                  disabled={state === 'thinking' || state === 'focus'}
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-90"
+                  style={{ background: accentColor, opacity: state === 'thinking' ? 0.5 : 1 }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="black">
+                    <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom controls */}
+          <div className="flex-shrink-0 px-6 pb-8 pt-1 flex items-center gap-4">
             {!started ? (
               <button
                 onClick={() => { setStarted(true); fetchBriefing(); }}
@@ -649,20 +762,22 @@ export default function JarvisScreen({
                     <rect x="6" y="6" width="12" height="12" rx="2"/>
                   </svg>
                 </button>
-                <button
-                  onClick={handleMicPress}
-                  className="flex-1 h-14 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all active:scale-[0.97]"
-                  style={{
-                    background: state === 'listening' ? '#ef444422' : state === 'confirming' ? '#f59e0b22' : accentColor + '18',
-                    border: `2px solid ${state === 'listening' ? '#ef4444' : state === 'confirming' ? '#f59e0b' : accentColor}`,
-                    color:  state === 'listening' ? '#ef4444' : state === 'confirming' ? '#f59e0b' : accentColor,
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
-                  </svg>
-                  {state === 'listening' ? 'מאזין...' : state === 'confirming' ? 'ביטול' : 'שאל שאלה'}
-                </button>
+                {SpeechRecognitionAPI && (
+                  <button
+                    onClick={handleMicPress}
+                    className="flex-1 h-14 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all active:scale-[0.97]"
+                    style={{
+                      background: state === 'listening' ? '#ef444422' : state === 'confirming' ? '#f59e0b22' : accentColor + '18',
+                      border: `2px solid ${state === 'listening' ? '#ef4444' : state === 'confirming' ? '#f59e0b' : accentColor}`,
+                      color:  state === 'listening' ? '#ef4444' : state === 'confirming' ? '#f59e0b' : accentColor,
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+                    </svg>
+                    {state === 'listening' ? 'מאזין...' : state === 'confirming' ? 'ביטול' : 'שאל בקול'}
+                  </button>
+                )}
                 <button
                   onClick={() => photoInputRef.current?.click()}
                   disabled={state === 'thinking' || state === 'focus'}
