@@ -7,13 +7,14 @@ interface Props {
   habits?: Habit[];
   aiLanguage?: string;
   onNewRecording: () => void;
+  onOpenJarvis?: () => void;
   onUpdateTask: (id: string, data: Partial<Task>) => void;
   onDeleteTask: (id: string) => void;
   onMarkDone: (id: string) => void;
   accentColor: string;
 }
 
-export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage = 'hebrew', onNewRecording, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
+export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage = 'hebrew', onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -52,10 +53,15 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
 
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
-        <button className="w-9 h-9 flex flex-col gap-[5px] justify-center items-end opacity-70">
-          <span className="w-5 h-0.5 bg-white rounded-full" />
-          <span className="w-4 h-0.5 bg-white rounded-full" />
-          <span className="w-5 h-0.5 bg-white rounded-full" />
+        <button
+          onClick={onOpenJarvis}
+          className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
+          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+          title="J.A.R.V.I.S"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="white" opacity={0.8}>
+            <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+          </svg>
         </button>
         <h1 className="text-lg font-bold tracking-wide">היום</h1>
         <button
