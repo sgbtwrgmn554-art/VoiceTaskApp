@@ -274,7 +274,13 @@ function NavBtn({ icon, label, active, onClick, accentColor }: {
   return (
     <button onClick={onClick}
       className="flex flex-col items-center gap-1 px-2 py-0.5 min-w-[52px] transition-transform active:scale-90">
-      <span style={{ color: active ? accentColor : '#4b5563' }}>{icon}</span>
+      <span
+        className="w-12 h-8 flex items-center justify-center rounded-xl transition-all duration-200"
+        style={{
+          background: active ? accentColor + '22' : 'transparent',
+          color: active ? accentColor : '#4b5563',
+        }}
+      >{icon}</span>
       <span className="text-[10px] font-medium" style={{ color: active ? accentColor : '#4b5563' }}>{label}</span>
     </button>
   );
