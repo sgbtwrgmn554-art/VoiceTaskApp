@@ -14,6 +14,7 @@ import GoalsScreen from './components/GoalsScreen';
 import HabitsScreen from './components/HabitsScreen';
 import AuthScreen from './components/AuthScreen';
 import ProfileScreen from './components/ProfileScreen';
+import JarvisScreen from './components/JarvisScreen';
 
 const ACCENT_COLORS: Record<ThemeColor, string> = {
   orange: '#f97316',
@@ -29,6 +30,7 @@ const ACCENT_COLORS: Record<ThemeColor, string> = {
 export default function App() {
   const [tab, setTab] = useState<AppTab>('home');
   const [showNewRecording, setShowNewRecording] = useState(false);
+  const [showJarvis, setShowJarvis] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(() => {
     const saved = localStorage.getItem('vt_user');
     return saved ? JSON.parse(saved) : null;
@@ -132,6 +134,7 @@ export default function App() {
               habits={habits}
               aiLanguage={settings.aiLanguage}
               onNewRecording={() => setShowNewRecording(true)}
+              onOpenJarvis={() => setShowJarvis(true)}
               onUpdateTask={(id, data) => updateTask({ id, ...data })}
               onDeleteTask={deleteTask}
               onMarkDone={markTaskDone}
@@ -198,6 +201,19 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* JARVIS overlay */}
+      {showJarvis && (
+        <JarvisScreen
+          tasks={tasks}
+          goals={goals}
+          habits={habits}
+          aiLanguage={settings.aiLanguage}
+          aiStyle={settings.aiStyle}
+          accentColor={accentColor}
+          onClose={() => setShowJarvis(false)}
+        />
+      )}
 
       {/* Bottom Navigation */}
       {!showNewRecording && (
