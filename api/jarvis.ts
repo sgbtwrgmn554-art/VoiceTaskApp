@@ -45,10 +45,12 @@ No action: {"text":"...","action":null}
 With action: {"text":"...","action":{"type":"...","<fields>":"..."}}
 
 ACTION TYPES:
-mark_done   → {"type":"mark_done","taskId":"<exact id>","taskTitle":"<title>"}
-create_task → {"type":"create_task","title":"<title>","priority":"low"|"medium"|"high"}
-add_habit   → {"type":"add_habit","title":"<title>","emoji":"<emoji>","frequency":"daily"|"weekly","targetDays":[0-6],"color":"<hex>"}
-create_goal → {"type":"create_goal","title":"<title>","domainId":"career"|"health"|"relationships"|"finance"|"growth"|"family"|"social"|"hobbies","description":"<optional>"}
+mark_done     → {"type":"mark_done","taskId":"<exact id>","taskTitle":"<title>"}
+create_task   → {"type":"create_task","title":"<title>","priority":"low"|"medium"|"high"}
+add_habit     → {"type":"add_habit","title":"<title>","emoji":"<emoji>","frequency":"daily"|"weekly","targetDays":[0-6],"color":"<hex>"}
+create_goal   → {"type":"create_goal","title":"<title>","domainId":"career"|"health"|"relationships"|"finance"|"growth"|"family"|"social"|"hobbies","description":"<optional>"}
+start_focus   → {"type":"start_focus","minutes":25,"taskTitle":"<task being focused on or empty>"}
+weekly_review → {"type":"weekly_review"}
 
 RULES:
 - text: 1-2 short Hebrew sentences, spoken out loud
@@ -56,6 +58,8 @@ RULES:
 - create_task: use when user wants to add a task → text = "רוצה ליצור משימה [title], לאשר?"
 - add_habit: daily uses targetDays [0,1,2,3,4,5,6]; pick a fitting emoji and color → text = "רוצה להוסיף הרגל [emoji][title] [frequency], לאשר?"
 - create_goal: pick the best domainId from the list → text = "רוצה ליצור יעד [title], לאשר?"
+- start_focus: use when user says focus/timer/pomodoro/ריכוז/טיימר/פוקוס/עבוד → minutes default 25 unless user specifies → text = "מתחיל טיימר ריכוז [minutes] דקות, לאשר?"
+- weekly_review: use when user says סיכום שבועי/weekly/שבוע/סיכום → text = "מייצר סיכום שבועי..."
 - No matching action → action:null, just answer the question
 ${language === 'english' ? '- Respond in English.' : '- Always respond in Hebrew.'}`;
 

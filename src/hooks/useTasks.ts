@@ -1,7 +1,17 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Task, TaskStatus, TaskPriority, TaskCategory, Reminder, CreateTaskInput, UpdateTaskInput } from '../types';
+import { Task, TaskStatus, TaskPriority, TaskCategory, Reminder, CreateTaskInput, UpdateTaskInput, RecurrenceType } from '../types';
 import { loadTasks, saveTasks } from '../utils/storage';
+
+function getNextRecurrenceDate(base: string | undefined, recurrence: RecurrenceType): string {
+  const d = base ? new Date(base) : new Date();
+  const add: Record<RecurrenceType, number> = {
+    none: 0, daily: 1, weekly: 7, monthly: 30,
+    every3months: 90, halfyear: 182, yearly: 365,
+  };
+  d.setDate(d.getDate() + (add[recurrence] ?? 1));
+  return d.toISOString().split('T')[0];
+}
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
@@ -20,6 +30,7 @@ export function useTasks() {
       status: input.status || 'todo',
       priority: input.priority || 'medium',
       category: input.category || 'כללי',
+      recurrence: input.recurrence,
       reminder: input.reminder,
       attachments: [],
       createdAt: now,
@@ -51,8 +62,26 @@ export function useTasks() {
   }, [tasks, persist]);
 
   const markTaskDone = useCallback((id: string): Task | null => {
-    return updateTask({ id, status: 'done' });
-  }, [updateTask]);
+    const task = tasks.find(t => t.id === id);
+    if (!task) return null;
+    const now = new Date().toISOString();
+    const doneTask: Task = { ...task, status: 'done', updatedAt: now };
+    let next = tasks.map(t => t.id === id ? doneTask : t);
+    if (task.recurrence && task.recurrence !== 'none') {
+      const nextDate = getNextRecurrenceDate(task.reminder?.date, task.recurrence);
+      const newTask: Task = {
+        ...task,
+        id: uuidv4(),
+        status: 'todo',
+        createdAt: now,
+        updatedAt: now,
+        reminder: task.reminder ? { ...task.reminder, date: nextDate } : undefined,
+      };
+      next = [...next, newTask];
+    }
+    persist(next);
+    return doneTask;
+  }, [tasks, persist]);
 
   const setReminder = useCallback((taskId: string, reminder: Reminder): Task | null => {
     return updateTask({ id: taskId, reminder });

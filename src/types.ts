@@ -29,6 +29,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   category: TaskCategory;
+  recurrence?: RecurrenceType;
   reminder?: Reminder;
   attachments: Attachment[];
   createdAt: string;
@@ -66,6 +67,7 @@ export interface CreateTaskInput {
   category?: TaskCategory;
   status?: TaskStatus;
   reminder?: Reminder;
+  recurrence?: RecurrenceType;
 }
 
 export interface UpdateTaskInput {

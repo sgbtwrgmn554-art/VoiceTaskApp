@@ -166,6 +166,7 @@ export default function NewRecordingScreen({
         priority: preview?.priority || 'medium',
         category,
         attachments: [],
+        recurrence: recur !== 'none' ? recur : undefined,
         reminder: (time || preview?.dueTime)
           ? { date: preview?.dueDate || new Date().toISOString().split('T')[0], time: time || preview!.dueTime!, recurrence: recur, whatsapp, whatsappPhone: phone }
           : undefined,

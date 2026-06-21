@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Task, Goal, Habit } from '../types';
+import { Task, Goal, Habit, HabitLog, ReflectionEntry } from '../types';
 import { useSpeech } from '../hooks/useSpeech';
 
-type JarvisState = 'idle' | 'loading' | 'speaking' | 'listening' | 'thinking' | 'confirming';
+type JarvisState = 'idle' | 'loading' | 'speaking' | 'listening' | 'thinking' | 'confirming' | 'focus' | 'weekly';
 
 interface Message { role: 'jarvis' | 'user'; text: string; }
 
@@ -10,12 +10,18 @@ type JarvisAction =
   | { type: 'mark_done'; taskId: string; taskTitle: string }
   | { type: 'create_task'; title: string; priority?: string }
   | { type: 'add_habit'; title: string; emoji: string; frequency: 'daily' | 'weekly'; targetDays: number[]; color: string }
-  | { type: 'create_goal'; title: string; domainId?: string; description?: string };
+  | { type: 'create_goal'; title: string; domainId?: string; description?: string }
+  | { type: 'start_focus'; minutes: number; taskTitle?: string }
+  | { type: 'weekly_review' };
+
+interface FocusData { totalSec: number; leftSec: number; taskTitle: string; }
 
 interface Props {
   tasks: Task[];
   goals: Goal[];
   habits: Habit[];
+  habitLogs?: HabitLog[];
+  reflections?: ReflectionEntry[];
   aiLanguage?: string;
   aiStyle?: string;
   accentColor: string;
@@ -31,18 +37,28 @@ const SpeechRecognitionAPI =
     ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     : null;
 
+function fmtTime(sec: number): string {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
 export default function JarvisScreen({
-  tasks, goals, habits, aiLanguage = 'hebrew', accentColor, onClose,
+  tasks, goals, habits, habitLogs = [], reflections = [],
+  aiLanguage = 'hebrew', accentColor, onClose,
   onMarkTaskDone, onCreateTask, onAddHabit, onCreateGoal,
 }: Props) {
-  const [state, setState]               = useState<JarvisState>('idle');
-  const [messages, setMessages]         = useState<Message[]>([]);
-  const [started, setStarted]           = useState(false);
+  const [state, setState]                 = useState<JarvisState>('idle');
+  const [messages, setMessages]           = useState<Message[]>([]);
+  const [started, setStarted]             = useState(false);
   const [pendingAction, setPendingAction] = useState<JarvisAction | null>(null);
+  const [focusData, setFocusData]         = useState<FocusData | null>(null);
+  const [focusMinutes, setFocusMinutes]   = useState(25);
   const { speak, stop, isSupported: ttsSupported } = useSpeech();
   const recognitionRef = useRef<any>(null);
   const scrollRef      = useRef<HTMLDivElement>(null);
   const onResultRef    = useRef<(text: string) => void>(() => {});
+  const focusTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const addMsg = useCallback((role: 'jarvis' | 'user', text: string) => {
     setMessages(prev => [...prev, { role, text }]);
@@ -86,8 +102,16 @@ export default function JarvisScreen({
       const text = data.text || 'מצטער, לא הצלחתי לקבל תשובה.';
       addMsg('jarvis', text);
       if (data.action) {
-        setPendingAction(data.action);
-        speakThen(text, () => setState('confirming'));
+        if (data.action.type === 'weekly_review') {
+          speakThen(text, () => fetchWeeklyReview());
+        } else if (data.action.type === 'start_focus') {
+          setFocusMinutes(data.action.minutes || 25);
+          setPendingAction(data.action);
+          speakThen(text, () => setState('confirming'));
+        } else {
+          setPendingAction(data.action);
+          speakThen(text, () => setState('confirming'));
+        }
       } else {
         speakThen(text, () => startListening());
       }
@@ -105,6 +129,51 @@ export default function JarvisScreen({
     speakThen(text, () => startListening());
   }, [addMsg, speakThen, startListening]);
 
+  const fetchWeeklyReview = useCallback(async () => {
+    setState('weekly');
+    try {
+      const res = await fetch('/api/weekly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks, habits, habitLogs, goals, reflections, language: aiLanguage }),
+      });
+      const data = await res.json();
+      const text = data.text || 'לא הצלחתי לייצר סיכום.';
+      speakAndListen(text);
+    } catch {
+      speakAndListen('מצטערת, לא הצלחתי לייצר סיכום שבועי.');
+    }
+  }, [tasks, habits, habitLogs, goals, reflections, aiLanguage, speakAndListen]);
+
+  const startFocusTimer = useCallback((minutes: number, taskTitle: string) => {
+    const totalSec = minutes * 60;
+    setFocusData({ totalSec, leftSec: totalSec, taskTitle });
+    setState('focus');
+    focusTimerRef.current = setInterval(() => {
+      setFocusData(prev => {
+        if (!prev) return null;
+        const next = prev.leftSec - 1;
+        if (next <= 0) {
+          clearInterval(focusTimerRef.current!);
+          const doneMsg = 'הזמן הסתיים! עשית עבודה מצוינת 🎉';
+          addMsg('jarvis', doneMsg);
+          speakThen(doneMsg, () => startListening());
+          setState('speaking');
+          return null;
+        }
+        return { ...prev, leftSec: next };
+      });
+    }, 1000);
+  }, [addMsg, speakThen, startListening]);
+
+  const stopFocusTimer = useCallback(() => {
+    if (focusTimerRef.current) clearInterval(focusTimerRef.current);
+    setFocusData(null);
+    const msg = 'עצרתי את הטיימר.';
+    addMsg('jarvis', msg);
+    speakThen(msg, () => startListening());
+  }, [addMsg, speakThen, startListening]);
+
   const handleConfirm = useCallback(() => {
     if (!pendingAction) return;
     const action = pendingAction;
@@ -112,18 +181,36 @@ export default function JarvisScreen({
     try {
       if (action.type === 'mark_done') {
         onMarkTaskDone(action.taskId);
+        const done = 'בוצע!';
+        addMsg('jarvis', done);
+        speakThen(done, () => startListening());
       } else if (action.type === 'create_task') {
         onCreateTask({ title: action.title, priority: action.priority });
+        const done = 'בוצע!';
+        addMsg('jarvis', done);
+        speakThen(done, () => startListening());
       } else if (action.type === 'add_habit') {
         onAddHabit({ title: action.title, emoji: action.emoji, frequency: action.frequency, targetDays: action.targetDays, color: action.color });
+        const done = 'בוצע!';
+        addMsg('jarvis', done);
+        speakThen(done, () => startListening());
       } else if (action.type === 'create_goal') {
         onCreateGoal(action.title, action.domainId || 'growth', action.description);
+        const done = 'בוצע!';
+        addMsg('jarvis', done);
+        speakThen(done, () => startListening());
+      } else if (action.type === 'start_focus') {
+        const mins = focusMinutes;
+        const msg = `מתחיל ${mins} דקות ריכוז. בהצלחה!`;
+        addMsg('jarvis', msg);
+        speakThen(msg, () => startFocusTimer(mins, action.taskTitle || ''));
       }
-    } catch {}
-    const done = 'בוצע!';
-    addMsg('jarvis', done);
-    speakThen(done, () => startListening());
-  }, [pendingAction, onMarkTaskDone, onCreateTask, onAddHabit, onCreateGoal, addMsg, speakThen, startListening]);
+    } catch {
+      const done = 'בוצע!';
+      addMsg('jarvis', done);
+      speakThen(done, () => startListening());
+    }
+  }, [pendingAction, focusMinutes, onMarkTaskDone, onCreateTask, onAddHabit, onCreateGoal, addMsg, speakThen, startListening, startFocusTimer]);
 
   const handleCancel = useCallback(() => {
     setPendingAction(null);
@@ -148,6 +235,7 @@ export default function JarvisScreen({
   }, [tasks, goals, habits, aiLanguage, speakAndListen]);
 
   const handleMicPress = () => {
+    if (state === 'focus') return;
     if (state === 'listening') {
       recognitionRef.current?.stop();
       setState('idle');
@@ -164,6 +252,7 @@ export default function JarvisScreen({
   useEffect(() => () => {
     stop();
     try { recognitionRef.current?.stop(); } catch {}
+    if (focusTimerRef.current) clearInterval(focusTimerRef.current);
   }, []);
 
   const statusLabel: Record<JarvisState, string> = {
@@ -173,6 +262,8 @@ export default function JarvisScreen({
     listening:  'מאזין...',
     thinking:   'חושב...',
     confirming: 'ממתין לאישור',
+    focus:      'ריכוז פעיל',
+    weekly:     'טוען סיכום שבועי...',
   };
 
   const pulseColor =
@@ -180,13 +271,22 @@ export default function JarvisScreen({
     : state === 'speaking' ? accentColor
     : state === 'thinking' ? '#a855f7'
     : state === 'confirming' ? '#f59e0b'
+    : state === 'focus' ? '#3b82f6'
     : 'rgba(255,255,255,0.1)';
 
   const actionLabel = !pendingAction ? '' :
     pendingAction.type === 'mark_done'    ? `✓ ${pendingAction.taskTitle}` :
     pendingAction.type === 'create_task'  ? `+ משימה: ${pendingAction.title}` :
     pendingAction.type === 'add_habit'    ? `${pendingAction.emoji} הרגל: ${pendingAction.title}` :
-                                            `🎯 יעד: ${pendingAction.title}`;
+    pendingAction.type === 'create_goal'  ? `🎯 יעד: ${pendingAction.title}` :
+    pendingAction.type === 'start_focus'  ? `⏱ טיימר ריכוז` : '';
+
+  const isFocusAction = pendingAction?.type === 'start_focus';
+
+  // Focus ring math
+  const focusProgress = focusData ? (focusData.totalSec - focusData.leftSec) / focusData.totalSec : 0;
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#050505' }}>
@@ -202,133 +302,194 @@ export default function JarvisScreen({
           <p className="text-sm font-bold tracking-widest text-white" style={{ letterSpacing: '0.2em' }}>J.A.R.V.I.S</p>
           <p className="text-[10px] text-gray-600 tracking-wider mt-0.5">עוזר אישי</p>
         </div>
-        <div className="w-9" />
+        <button
+          onClick={() => { if (started && state === 'idle') fetchWeeklyReview(); else if (!started) { setStarted(true); fetchWeeklyReview(); } }}
+          title="סיכום שבועי"
+          className="w-9 h-9 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 transition-opacity text-base"
+          style={{ background: 'rgba(255,255,255,0.07)' }}
+        >
+          📋
+        </button>
       </div>
 
-      {/* Orb */}
-      <div className="flex-shrink-0 flex items-center justify-center py-8">
-        <div className="relative">
-          {(state === 'listening' || state === 'speaking' || state === 'confirming') && (
-            <>
-              <div className="absolute inset-0 rounded-full animate-ping" style={{ background: pulseColor + '20', transform: 'scale(1.6)' }} />
-              <div className="absolute inset-0 rounded-full animate-ping" style={{ background: pulseColor + '10', transform: 'scale(2)', animationDelay: '0.3s' }} />
-            </>
+      {/* Focus Timer UI */}
+      {state === 'focus' && focusData ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 fade-up">
+          <p className="text-xs tracking-widest text-gray-500 uppercase">ריכוז</p>
+          {focusData.taskTitle && (
+            <p className="text-sm text-gray-400 text-center px-8">{focusData.taskTitle}</p>
           )}
-          <div
-            className="w-28 h-28 rounded-full flex items-center justify-center transition-all duration-500"
-            style={{
-              background: `radial-gradient(circle at 40% 35%, ${pulseColor}66, ${pulseColor}11)`,
-              boxShadow: `0 0 40px ${pulseColor}44, inset 0 0 20px ${pulseColor}22`,
-              border: `1px solid ${pulseColor}33`,
-            }}
+          <div className="relative">
+            <svg width="140" height="140" viewBox="0 0 140 140">
+              <circle cx="70" cy="70" r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8"/>
+              <circle
+                cx="70" cy="70" r={radius}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference * (1 - focusProgress)}
+                transform="rotate(-90 70 70)"
+                style={{ transition: 'stroke-dashoffset 1s linear' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="text-3xl font-mono font-bold text-white">{fmtTime(focusData.leftSec)}</p>
+            </div>
+          </div>
+          <button
+            onClick={stopFocusTimer}
+            className="px-8 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95"
+            style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444' }}
           >
-            {state === 'thinking' ? (
-              <div className="flex gap-1">
-                {[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-white opacity-60 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+            עצור טיימר
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Orb */}
+          <div className="flex-shrink-0 flex items-center justify-center py-8">
+            <div className="relative">
+              {(state === 'listening' || state === 'speaking' || state === 'confirming') && (
+                <>
+                  <div className="absolute inset-0 rounded-full animate-ping" style={{ background: pulseColor + '20', transform: 'scale(1.6)' }} />
+                  <div className="absolute inset-0 rounded-full animate-ping" style={{ background: pulseColor + '10', transform: 'scale(2)', animationDelay: '0.3s' }} />
+                </>
+              )}
+              <div
+                className="w-28 h-28 rounded-full flex items-center justify-center transition-all duration-500"
+                style={{
+                  background: `radial-gradient(circle at 40% 35%, ${pulseColor}66, ${pulseColor}11)`,
+                  boxShadow: `0 0 40px ${pulseColor}44, inset 0 0 20px ${pulseColor}22`,
+                  border: `1px solid ${pulseColor}33`,
+                }}
+              >
+                {state === 'thinking' || state === 'weekly' ? (
+                  <div className="flex gap-1">
+                    {[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-white opacity-60 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+                  </div>
+                ) : state === 'confirming' ? (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" opacity={0.9}>
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="#f59e0b" stroke="none"/>
+                  </svg>
+                ) : (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="white" opacity={0.8}>
+                    <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+                  </svg>
+                )}
               </div>
-            ) : state === 'confirming' ? (
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" opacity={0.9}>
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="#f59e0b" stroke="none"/>
-              </svg>
+            </div>
+          </div>
+
+          {/* Status */}
+          <p className="text-center text-xs text-gray-500 tracking-wider mb-4 flex-shrink-0">{statusLabel[state]}</p>
+
+          {/* Messages */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 pb-2">
+            {!started && messages.length === 0 && (
+              <div className="text-center mt-8 fade-up">
+                <p className="text-gray-600 text-sm">לחץ "הפעל" כדי לקבל סיכום יומי</p>
+                <p className="text-gray-700 text-xs mt-1">ג'ארוויס יקרא לך מה יש לך ויחכה לשאלות</p>
+                <p className="text-gray-700 text-xs mt-1">לחץ 📋 לסיכום שבועי</p>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+                <div
+                  className="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm"
+                  style={m.role === 'jarvis'
+                    ? { background: accentColor + '18', border: `1px solid ${accentColor}30`, color: '#e5e7eb' }
+                    : { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#9ca3af' }
+                  }
+                >
+                  {m.role === 'jarvis' && <p className="text-[10px] mb-1 opacity-50" style={{ color: accentColor }}>JARVIS</p>}
+                  {m.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Confirmation card */}
+          {pendingAction && state === 'confirming' && (
+            <div className="flex-shrink-0 px-4 pb-2 fade-up">
+              <div className="rounded-2xl p-4" style={{ background: '#f59e0b14', border: '1px solid #f59e0b44' }}>
+                <p className="text-sm font-semibold mb-3" style={{ color: '#f59e0b' }}>{actionLabel}</p>
+                {isFocusAction && (
+                  <div className="flex items-center justify-center gap-4 mb-3">
+                    <button
+                      onClick={() => setFocusMinutes(m => Math.max(1, m - 5))}
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold transition-all active:scale-90"
+                      style={{ background: 'rgba(255,255,255,0.1)', color: '#e5e7eb' }}
+                    >−</button>
+                    <span className="text-2xl font-bold text-white w-20 text-center">{focusMinutes} דק׳</span>
+                    <button
+                      onClick={() => setFocusMinutes(m => Math.min(120, m + 5))}
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-lg font-bold transition-all active:scale-90"
+                      style={{ background: 'rgba(255,255,255,0.1)', color: '#e5e7eb' }}
+                    >+</button>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCancel}
+                    className="flex-1 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.97]"
+                    style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    ביטול
+                  </button>
+                  <button
+                    onClick={handleConfirm}
+                    className="flex-1 py-3 rounded-xl text-sm font-bold transition-all active:scale-[0.97]"
+                    style={{ background: '#f59e0b', color: '#000' }}
+                  >
+                    {isFocusAction ? `התחל ${focusMinutes} דק׳ ⏱` : 'אשר ✓'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Controls */}
+          <div className="flex-shrink-0 px-6 pb-8 pt-4 flex items-center gap-4">
+            {!started ? (
+              <button
+                onClick={() => { setStarted(true); fetchBriefing(); }}
+                className="flex-1 py-4 rounded-2xl text-base font-bold transition-all active:scale-[0.98]"
+                style={{ background: accentColor, color: '#000' }}
+              >
+                הפעל ג'ארוויס
+              </button>
             ) : (
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="white" opacity={0.8}>
-                <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
-              </svg>
+              <>
+                <button
+                  onClick={() => { stop(); setPendingAction(null); try { recognitionRef.current?.stop(); } catch {} setState('idle'); }}
+                  className="w-12 h-12 rounded-full flex items-center justify-center opacity-40 hover:opacity-70 transition-opacity"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                    <rect x="6" y="6" width="12" height="12" rx="2"/>
+                  </svg>
+                </button>
+                <button
+                  onClick={handleMicPress}
+                  className="flex-1 h-14 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all active:scale-[0.97]"
+                  style={{
+                    background: state === 'listening' ? '#ef444422' : state === 'confirming' ? '#f59e0b22' : accentColor + '18',
+                    border: `2px solid ${state === 'listening' ? '#ef4444' : state === 'confirming' ? '#f59e0b' : accentColor}`,
+                    color:  state === 'listening' ? '#ef4444' : state === 'confirming' ? '#f59e0b' : accentColor,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+                  </svg>
+                  {state === 'listening' ? 'מאזין...' : state === 'confirming' ? 'ביטול' : 'שאל שאלה'}
+                </button>
+              </>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Status */}
-      <p className="text-center text-xs text-gray-500 tracking-wider mb-4 flex-shrink-0">{statusLabel[state]}</p>
-
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 pb-2">
-        {!started && messages.length === 0 && (
-          <div className="text-center mt-8 fade-up">
-            <p className="text-gray-600 text-sm">לחץ "הפעל" כדי לקבל סיכום יומי</p>
-            <p className="text-gray-700 text-xs mt-1">ג'ארוויס יקרא לך מה יש לך ויחכה לשאלות</p>
-          </div>
-        )}
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-            <div
-              className="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm"
-              style={m.role === 'jarvis'
-                ? { background: accentColor + '18', border: `1px solid ${accentColor}30`, color: '#e5e7eb' }
-                : { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#9ca3af' }
-              }
-            >
-              {m.role === 'jarvis' && <p className="text-[10px] mb-1 opacity-50" style={{ color: accentColor }}>JARVIS</p>}
-              {m.text}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Confirmation card */}
-      {pendingAction && state === 'confirming' && (
-        <div className="flex-shrink-0 px-4 pb-2 fade-up">
-          <div className="rounded-2xl p-4" style={{ background: '#f59e0b14', border: '1px solid #f59e0b44' }}>
-            <p className="text-sm font-semibold mb-3" style={{ color: '#f59e0b' }}>{actionLabel}</p>
-            <div className="flex gap-3">
-              <button
-                onClick={handleCancel}
-                className="flex-1 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.97]"
-                style={{ background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}
-              >
-                ביטול
-              </button>
-              <button
-                onClick={handleConfirm}
-                className="flex-1 py-3 rounded-xl text-sm font-bold transition-all active:scale-[0.97]"
-                style={{ background: '#f59e0b', color: '#000' }}
-              >
-                אשר ✓
-              </button>
-            </div>
-          </div>
-        </div>
+        </>
       )}
-
-      {/* Controls */}
-      <div className="flex-shrink-0 px-6 pb-8 pt-4 flex items-center gap-4">
-        {!started ? (
-          <button
-            onClick={() => { setStarted(true); fetchBriefing(); }}
-            className="flex-1 py-4 rounded-2xl text-base font-bold transition-all active:scale-[0.98]"
-            style={{ background: accentColor, color: '#000' }}
-          >
-            הפעל ג'ארוויס
-          </button>
-        ) : (
-          <>
-            <button
-              onClick={() => { stop(); setPendingAction(null); try { recognitionRef.current?.stop(); } catch {} setState('idle'); }}
-              className="w-12 h-12 rounded-full flex items-center justify-center opacity-40 hover:opacity-70 transition-opacity"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                <rect x="6" y="6" width="12" height="12" rx="2"/>
-              </svg>
-            </button>
-            <button
-              onClick={handleMicPress}
-              className="flex-1 h-14 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all active:scale-[0.97]"
-              style={{
-                background: state === 'listening' ? '#ef444422' : state === 'confirming' ? '#f59e0b22' : accentColor + '18',
-                border: `2px solid ${state === 'listening' ? '#ef4444' : state === 'confirming' ? '#f59e0b' : accentColor}`,
-                color:  state === 'listening' ? '#ef4444' : state === 'confirming' ? '#f59e0b' : accentColor,
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
-              </svg>
-              {state === 'listening' ? 'מאזין...' : state === 'confirming' ? 'ביטול' : 'שאל שאלה'}
-            </button>
-          </>
-        )}
-      </div>
     </div>
   );
 }
