@@ -339,6 +339,9 @@ function TaskRow({ task, index, done, onDone, onDelete, menuOpen, onMenuToggle, 
               {task.reminder.time}
             </span>
           )}
+          {task.recurrence && task.recurrence !== 'none' && (
+            <span className="text-[11px] text-gray-600" title="חוזרת">🔁</span>
+          )}
         </div>
       </div>
 

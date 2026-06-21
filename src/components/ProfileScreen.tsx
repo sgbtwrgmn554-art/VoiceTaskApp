@@ -1,10 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { AppSettings, LifeDomain, ThemeColor } from '../types';
+import { AppSettings, LifeDomain, ThemeColor, Task, Habit, HabitLog, Goal, ReflectionEntry } from '../types';
 import { clearAllData } from '../utils/storage';
 
 interface Props {
   settings: AppSettings;
   accentColor: string;
+  tasks?: Task[];
+  habits?: Habit[];
+  habitLogs?: HabitLog[];
+  goals?: Goal[];
+  reflections?: ReflectionEntry[];
   onUpdateSettings: (patch: Partial<AppSettings>) => void;
   onAddCategory: (name: string) => void;
   onRemoveCategory: (name: string) => void;
@@ -118,8 +123,108 @@ function ChipSelect<T extends string>({
   );
 }
 
+function StatsSection({ tasks = [], habits = [], habitLogs = [], goals = [], reflections = [], accentColor }: {
+  tasks?: Task[]; habits?: Habit[]; habitLogs?: HabitLog[];
+  goals?: Goal[]; reflections?: ReflectionEntry[]; accentColor: string;
+}) {
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekAgoStr = weekAgo.toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
+
+  const doneTasks = tasks.filter(t => t.status === 'done' && t.updatedAt >= weekAgo.toISOString()).length;
+  const totalActive = tasks.filter(t => t.status !== 'done').length;
+  const completedGoals = goals.filter(g => g.status === 'completed').length;
+  const totalGoals = goals.length;
+  const goalPct = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
+  const weekReflections = reflections.filter(r => r.date >= weekAgoStr);
+  const avgMood = weekReflections.length > 0
+    ? (weekReflections.reduce((s, r) => s + r.mood, 0) / weekReflections.length).toFixed(1)
+    : null;
+
+  // 7-day task completion bar chart
+  const days: { label: string; count: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dayStr = d.toISOString().split('T')[0];
+    const dayLabel = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'][d.getDay()];
+    const count = tasks.filter(t => t.status === 'done' && t.updatedAt.startsWith(dayStr)).length;
+    days.push({ label: dayLabel, count });
+  }
+  const maxCount = Math.max(...days.map(d => d.count), 1);
+
+  // Habit streaks
+  const topHabits = habits.slice(0, 3).map(h => {
+    const logs7 = habitLogs.filter(l => l.habitId === h.id && l.date >= weekAgoStr);
+    return { emoji: h.emoji, title: h.title, done: logs7.length };
+  });
+
+  const statItems = [
+    { label: 'בוצעו השבוע', value: doneTasks, suffix: 'משימות' },
+    { label: 'פתוחות', value: totalActive, suffix: 'משימות' },
+    { label: 'יעדים', value: `${goalPct}%`, suffix: 'הושלמו' },
+    { label: 'מצב רוח ממוצע', value: avgMood ?? '—', suffix: avgMood ? '/5' : '' },
+  ];
+
+  return (
+    <div className="mb-2">
+      <SectionHeader emoji="📊" title="סטטיסטיקות" />
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        {statItems.map((s, i) => (
+          <div key={i} className="rounded-2xl px-4 py-3.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-[11px] text-gray-500 mb-0.5">{s.label}</p>
+            <p className="text-xl font-bold text-white">{s.value}<span className="text-xs text-gray-500 font-normal ml-1">{s.suffix}</span></p>
+          </div>
+        ))}
+      </div>
+
+      {/* 7-day bar chart */}
+      <div className="rounded-2xl px-4 py-3.5 mb-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <p className="text-[11px] text-gray-500 mb-3">משימות לפי יום (7 ימים)</p>
+        <div className="flex items-end justify-between gap-1 h-12">
+          {days.map((d, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div
+                className="w-full rounded-sm transition-all"
+                style={{
+                  height: `${Math.max(3, (d.count / maxCount) * 40)}px`,
+                  background: d.count > 0 ? accentColor + 'cc' : 'rgba(255,255,255,0.08)',
+                }}
+              />
+              <span className="text-[10px] text-gray-600">{d.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Habit summary */}
+      {topHabits.length > 0 && (
+        <div className="rounded-2xl px-4 py-3.5 mb-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-[11px] text-gray-500 mb-2">הרגלים השבוע</p>
+          <div className="space-y-1.5">
+            {topHabits.map((h, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-base">{h.emoji}</span>
+                <span className="text-xs text-gray-300 flex-1 truncate">{h.title}</span>
+                <div className="flex gap-0.5">
+                  {Array.from({ length: 7 }).map((_, j) => (
+                    <div key={j} className="w-2.5 h-2.5 rounded-sm"
+                      style={{ background: j < h.done ? accentColor + 'cc' : 'rgba(255,255,255,0.08)' }} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProfileScreen({
   settings, accentColor,
+  tasks, habits, habitLogs, goals, reflections,
   onUpdateSettings, onAddCategory, onRemoveCategory, onRenameCategory,
   onAddDomain, onUpdateDomain, onRemoveDomain,
   onThemeChange, onLogout,
@@ -167,6 +272,11 @@ export default function ProfileScreen({
           <h1 className="text-lg font-bold">הגדרות</h1>
           <p className="text-xs text-gray-500 mt-0.5">התאם את האפליקציה לעצמך</p>
         </div>
+
+        <StatsSection
+          tasks={tasks} habits={habits} habitLogs={habitLogs}
+          goals={goals} reflections={reflections} accentColor={accentColor}
+        />
 
         {/* ── TASKS ── */}
         <SectionHeader emoji="📋" title="משימות" />

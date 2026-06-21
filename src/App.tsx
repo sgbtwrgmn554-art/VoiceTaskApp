@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { AppTab, ThemeColor, Task, Reminder, LifeDomainId } from './types';
 import { useTasks } from './hooks/useTasks';
 import { useAI } from './hooks/useAI';
@@ -6,6 +6,7 @@ import { useReminders } from './hooks/useReminders';
 import { useGoals } from './hooks/useGoals';
 import { useHabits } from './hooks/useHabits';
 import { useSettings } from './hooks/useSettings';
+import { requestNotificationPermission, setupMorningNotification } from './utils/notifications';
 import HomeScreen from './components/HomeScreen';
 import NewRecordingScreen from './components/NewRecordingScreen';
 import AIChatScreen from './components/AIChatScreen';
@@ -69,7 +70,13 @@ export default function App() {
 
   useReminders({ tasks, onUpdateTask: handleReminderFired });
 
-  const { habits, addHabit, deleteHabit, toggleToday, isDoneToday, streak, addReflection, todayReflection } = useHabits();
+  useEffect(() => {
+    if (!settings.morningCheckInEnabled) return;
+    requestNotificationPermission();
+    return setupMorningNotification(settings.morningCheckInEnabled, settings.morningCheckInTime, tasks);
+  }, [settings.morningCheckInEnabled, settings.morningCheckInTime, tasks]);
+
+  const { habits, logs: habitLogs, reflections, addHabit, deleteHabit, toggleToday, isDoneToday, streak, addReflection, todayReflection } = useHabits();
 
   const { goals, generatingFor, createGoal, updateGoal, deleteGoal, toggleMilestone, generateMilestones, milestoneToTask } = useGoals({
     onCreateTask: createTask,
@@ -188,6 +195,11 @@ export default function App() {
             <ProfileScreen
               settings={settings}
               accentColor={accentColor}
+              tasks={tasks}
+              habits={habits}
+              habitLogs={habitLogs}
+              goals={goals}
+              reflections={reflections}
               onUpdateSettings={updateSettings}
               onAddCategory={addCategory}
               onRemoveCategory={removeCategory}
@@ -208,6 +220,8 @@ export default function App() {
           tasks={tasks}
           goals={goals}
           habits={habits}
+          habitLogs={habitLogs}
+          reflections={reflections}
           aiLanguage={settings.aiLanguage}
           aiStyle={settings.aiStyle}
           accentColor={accentColor}
