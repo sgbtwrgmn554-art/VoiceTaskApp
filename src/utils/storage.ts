@@ -1,4 +1,4 @@
-import { Task, ChatMessage, Goal, AppSettings } from '../types';
+import { Task, ChatMessage, Goal, AppSettings, Habit, HabitLog, ReflectionEntry } from '../types';
 
 const TASKS_KEY    = 'voicetask_tasks';
 const CHAT_KEY     = 'voicetask_chat';
@@ -56,9 +56,35 @@ export function saveSettings(settings: AppSettings): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
+const HABITS_KEY      = 'voicetask_habits';
+const HABIT_LOGS_KEY  = 'voicetask_habit_logs';
+const REFLECTIONS_KEY = 'voicetask_reflections';
+
+export function loadHabits(): Habit[] {
+  try { const r = localStorage.getItem(HABITS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+}
+export function saveHabits(h: Habit[]): void {
+  localStorage.setItem(HABITS_KEY, JSON.stringify(h));
+}
+export function loadHabitLogs(): HabitLog[] {
+  try { const r = localStorage.getItem(HABIT_LOGS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+}
+export function saveHabitLogs(logs: HabitLog[]): void {
+  localStorage.setItem(HABIT_LOGS_KEY, JSON.stringify(logs));
+}
+export function loadReflections(): ReflectionEntry[] {
+  try { const r = localStorage.getItem(REFLECTIONS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+}
+export function saveReflections(entries: ReflectionEntry[]): void {
+  localStorage.setItem(REFLECTIONS_KEY, JSON.stringify(entries));
+}
+
 export function clearAllData(): void {
   localStorage.removeItem(TASKS_KEY);
   localStorage.removeItem(CHAT_KEY);
   localStorage.removeItem(GOALS_KEY);
   localStorage.removeItem(SETTINGS_KEY);
+  localStorage.removeItem(HABITS_KEY);
+  localStorage.removeItem(HABIT_LOGS_KEY);
+  localStorage.removeItem(REFLECTIONS_KEY);
 }

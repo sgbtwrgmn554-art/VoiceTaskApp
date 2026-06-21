@@ -4,12 +4,14 @@ import { useTasks } from './hooks/useTasks';
 import { useAI } from './hooks/useAI';
 import { useReminders } from './hooks/useReminders';
 import { useGoals } from './hooks/useGoals';
+import { useHabits } from './hooks/useHabits';
 import { useSettings } from './hooks/useSettings';
 import HomeScreen from './components/HomeScreen';
 import NewRecordingScreen from './components/NewRecordingScreen';
 import AIChatScreen from './components/AIChatScreen';
 import CalendarScreen from './components/CalendarScreen';
 import GoalsScreen from './components/GoalsScreen';
+import HabitsScreen from './components/HabitsScreen';
 import AuthScreen from './components/AuthScreen';
 import ProfileScreen from './components/ProfileScreen';
 
@@ -64,6 +66,8 @@ export default function App() {
   }, [tasks, updateTask]);
 
   useReminders({ tasks, onUpdateTask: handleReminderFired });
+
+  const { habits, addHabit, deleteHabit, toggleToday, isDoneToday, streak, addReflection, todayReflection } = useHabits();
 
   const { goals, generatingFor, createGoal, updateGoal, deleteGoal, toggleMilestone, generateMilestones, milestoneToTask } = useGoals({
     onCreateTask: createTask,
@@ -124,6 +128,9 @@ export default function App() {
           <div key="home" className="h-full tab-in">
             <HomeScreen
               tasks={tasks}
+              goals={goals}
+              habits={habits}
+              aiLanguage={settings.aiLanguage}
               onNewRecording={() => setShowNewRecording(true)}
               onUpdateTask={(id, data) => updateTask({ id, ...data })}
               onDeleteTask={deleteTask}
@@ -144,6 +151,20 @@ export default function App() {
         ) : tab === 'calendar' ? (
           <div key="calendar" className="h-full tab-in">
             <CalendarScreen tasks={tasks} accentColor={accentColor} />
+          </div>
+        ) : tab === 'habits' ? (
+          <div key="habits" className="h-full tab-in">
+            <HabitsScreen
+              habits={habits}
+              todayReflection={todayReflection}
+              isDoneToday={isDoneToday}
+              streak={streak}
+              onToggle={toggleToday}
+              onAddHabit={addHabit}
+              onDeleteHabit={deleteHabit}
+              onAddReflection={addReflection}
+              accentColor={accentColor}
+            />
           </div>
         ) : tab === 'goals' ? (
           <div key="goals" className="h-full tab-in">
@@ -190,7 +211,7 @@ export default function App() {
                paddingTop: '10px',
              }}>
           <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => setTab('profile')}  accentColor={accentColor} />
-          <NavBtn icon={<ChatIcon />}     label="AI צ׳אט"  active={tab === 'chat'}     onClick={() => setTab('chat')}     accentColor={accentColor} />
+          <NavBtn icon={<HabitsIcon />}   label="הרגלים"   active={tab === 'habits'}   onClick={() => setTab('habits')}   accentColor={accentColor} />
 
           {/* Center home button */}
           <button onClick={() => setTab('home')} className="flex flex-col items-center -mt-6 transition-transform active:scale-90">
@@ -205,8 +226,8 @@ export default function App() {
             </div>
           </button>
 
-          <NavBtn icon={<CalendarIcon />} label="קלנדר"    active={tab === 'calendar'} onClick={() => setTab('calendar')} accentColor={accentColor} />
           <NavBtn icon={<GoalsIcon />}    label="יעדים"    active={tab === 'goals'}    onClick={() => setTab('goals')}    accentColor={accentColor} />
+          <NavBtn icon={<ChatIcon />}     label="AI"       active={tab === 'chat'}     onClick={() => setTab('chat')}     accentColor={accentColor} />
         </nav>
       )}
     </div>
@@ -243,4 +264,7 @@ function CalendarIcon() {
 }
 function GoalsIcon() {
   return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
+}
+function HabitsIcon() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><path d="M18 2v4"/><path d="M20 4h-4"/></svg>;
 }
