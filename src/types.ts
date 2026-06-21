@@ -150,9 +150,19 @@ export interface Goal {
   domainId: LifeDomainId;
   title: string;
   description: string;
+  why?: string;
   deadline?: string;
   milestones: Milestone[];
   status: 'active' | 'completed' | 'paused';
+  createdAt: string;
+}
+
+// ── Desires / Aspirations ─────────────────────────────────────────────────────
+
+export interface Desire {
+  id: string;
+  text: string;
+  emoji: string;
   createdAt: string;
 }
 

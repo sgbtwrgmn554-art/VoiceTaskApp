@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Goal, LifeDomain, LifeDomainId, Milestone } from '../types';
+import { Goal, LifeDomain, LifeDomainId, Milestone, Desire } from '../types';
 
 const FALLBACK_DOMAIN: LifeDomain = { id: 'other', label: 'אחר', emoji: '⭐', color: '#6b7280' };
 
@@ -7,21 +7,26 @@ interface Props {
   goals: Goal[];
   domains: LifeDomain[];
   generatingFor: string | null;
+  desires?: Desire[];
   onCreateGoal: (title: string, domainId: LifeDomainId, description: string, deadline?: string) => Goal;
   onToggleMilestone: (goalId: string, milestoneId: string) => void;
   onGenerateMilestones: (goalId: string) => void;
   onMilestoneToTask: (goalId: string, milestoneId: string) => void;
   onDeleteGoal: (id: string) => void;
+  onUpdateGoalWhy?: (goalId: string, why: string) => void;
+  onDeleteDesire?: (id: string) => void;
   accentColor: string;
 }
 
 type View = { kind: 'domains' } | { kind: 'domain'; domainId: LifeDomainId } | { kind: 'goal'; goalId: string } | { kind: 'new'; domainId: LifeDomainId };
 
-export default function GoalsScreen({ goals, domains, generatingFor, onCreateGoal, onToggleMilestone, onGenerateMilestones, onMilestoneToTask, onDeleteGoal, accentColor }: Props) {
+export default function GoalsScreen({ goals, domains, generatingFor, desires = [], onCreateGoal, onToggleMilestone, onGenerateMilestones, onMilestoneToTask, onDeleteGoal, onUpdateGoalWhy, onDeleteDesire, accentColor }: Props) {
   const [view, setView] = useState<View>({ kind: 'domains' });
   const [newTitle, setNewTitle] = useState('');
   const [newDeadline, setNewDeadline] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingWhy, setEditingWhy] = useState(false);
+  const [whyDraft, setWhyDraft] = useState('');
 
   const goBack = () => {
     if (view.kind === 'new')    { setView({ kind: 'domain', domainId: view.domainId }); return; }
@@ -87,6 +92,30 @@ export default function GoalsScreen({ goals, domains, generatingFor, onCreateGoa
               );
             })}
           </div>
+
+          {/* Desires / Aspirations */}
+          {desires.length > 0 && (
+            <div className="mt-6 fade-up">
+              <p className="text-xs text-gray-500 mb-3 px-1">✨ חלומות ושאיפות</p>
+              <div className="space-y-2">
+                {desires.map(d => (
+                  <div key={d.id}
+                       className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <span className="text-xl flex-shrink-0">{d.emoji}</span>
+                    <p className="flex-1 text-sm text-gray-300 leading-relaxed">{d.text}</p>
+                    {onDeleteDesire && (
+                      <button
+                        onClick={() => onDeleteDesire(d.id)}
+                        className="flex-shrink-0 text-gray-600 hover:text-red-400 transition-colors text-base leading-none"
+                      >✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="h-4" />
         </div>
       </div>
     );
@@ -279,6 +308,52 @@ export default function GoalsScreen({ goals, domains, generatingFor, onCreateGoa
               <span className="text-xs text-gray-400">יעד סיום: {goal.deadline}</span>
             </div>
           )}
+
+          {/* Why */}
+          <div className="rounded-2xl px-4 py-3 fade-up"
+               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs text-gray-500">💡 למה זה חשוב לי</p>
+              {onUpdateGoalWhy && !editingWhy && (
+                <button
+                  onClick={() => { setWhyDraft(goal.why || ''); setEditingWhy(true); }}
+                  className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors">
+                  {goal.why ? 'ערוך' : '+ הוסף'}
+                </button>
+              )}
+            </div>
+            {editingWhy && onUpdateGoalWhy ? (
+              <div className="space-y-2">
+                <textarea
+                  value={whyDraft}
+                  onChange={e => setWhyDraft(e.target.value)}
+                  placeholder="מה הסיבה האמיתית שאתה רוצה להשיג את זה?"
+                  rows={2}
+                  autoFocus
+                  className="w-full text-white text-sm resize-none outline-none rounded-xl px-3 py-2.5"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { onUpdateGoalWhy(goal.id, whyDraft.trim()); setEditingWhy(false); }}
+                    className="flex-1 py-2 rounded-xl text-xs font-semibold text-black transition-transform active:scale-95"
+                    style={{ background: accentColor }}>
+                    שמור
+                  </button>
+                  <button
+                    onClick={() => setEditingWhy(false)}
+                    className="px-4 py-2 rounded-xl text-xs text-gray-400 transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className={`text-sm leading-relaxed ${goal.why ? 'text-gray-300' : 'text-gray-600 italic'}`}>
+                {goal.why || 'ספר ל-JARVIS למה יעד זה חשוב לך — הוא ישתמש בכך להניע אותך'}
+              </p>
+            )}
+          </div>
 
           {/* Milestones */}
           <div>

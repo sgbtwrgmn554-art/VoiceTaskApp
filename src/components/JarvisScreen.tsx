@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Task, Goal, Habit, HabitLog, ReflectionEntry, AppTab, VoiceShortcut } from '../types';
+import { Task, Goal, Habit, HabitLog, ReflectionEntry, AppTab, VoiceShortcut, Desire } from '../types';
 import { useSpeech } from '../hooks/useSpeech';
 
 type JarvisState = 'idle' | 'loading' | 'speaking' | 'listening' | 'thinking' | 'confirming' | 'focus' | 'weekly';
@@ -8,19 +8,24 @@ interface Message { role: 'jarvis' | 'user'; text: string; }
 
 type JarvisAction =
   | { type: 'mark_done'; taskId: string; taskTitle: string }
-  | { type: 'create_task'; title: string; priority?: string }
+  | { type: 'create_task'; title: string; priority?: string; date?: string; time?: string }
+  | { type: 'create_tasks_batch'; planTitle: string; tasks: Array<{ title: string; date?: string; time?: string; priority?: string }> }
   | { type: 'edit_task'; taskId: string; taskTitle: string; field: string; value: string }
   | { type: 'delete_task'; taskId: string; taskTitle: string }
+  | { type: 'reschedule_day'; summary: string }
   | { type: 'add_habit'; title: string; emoji: string; frequency: 'daily' | 'weekly'; targetDays: number[]; color: string }
   | { type: 'toggle_habit'; habitId: string; habitTitle: string }
   | { type: 'delete_habit'; habitId: string; habitTitle: string }
   | { type: 'create_goal'; title: string; domainId?: string; description?: string }
   | { type: 'delete_goal'; goalId: string; goalTitle: string }
+  | { type: 'update_goal_why'; goalId: string; goalTitle: string; why: string }
+  | { type: 'add_desire'; text: string; emoji: string }
   | { type: 'navigate'; tab: AppTab }
   | { type: 'add_reflection'; gratitude: string; learning: string; tomorrowFocus: string; mood: 1|2|3|4|5 }
   | { type: 'start_focus'; minutes: number; taskTitle?: string }
   | { type: 'weekly_review' }
-  | { type: 'suggest_app'; appName: string; url: string; reason: string };
+  | { type: 'suggest_app'; appName: string; url: string; reason: string }
+  | { type: 'suggest_video'; topic: string; searchQuery: string };
 
 interface FocusData { totalSec: number; leftSec: number; taskTitle: string; }
 
@@ -30,6 +35,7 @@ interface Props {
   habits: Habit[];
   habitLogs?: HabitLog[];
   reflections?: ReflectionEntry[];
+  desires?: Desire[];
   aiLanguage?: string;
   aiStyle?: string;
   jarvisMode?: string;
@@ -38,7 +44,7 @@ interface Props {
   accentColor: string;
   onClose: () => void;
   onMarkTaskDone: (id: string) => void;
-  onCreateTask: (input: { title: string; priority?: string }) => void;
+  onCreateTask: (input: { title: string; priority?: string; date?: string; time?: string }) => void;
   onUpdateTask: (id: string, patch: Record<string, unknown>) => void;
   onDeleteTask: (id: string) => void;
   onAddHabit: (data: Omit<Habit, 'id' | 'createdAt'>) => void;
@@ -46,6 +52,8 @@ interface Props {
   onDeleteHabit: (id: string) => void;
   onCreateGoal: (title: string, domainId: string, description?: string) => void;
   onDeleteGoal: (id: string) => void;
+  onUpdateGoalWhy: (id: string, why: string) => void;
+  onAddDesire: (text: string, emoji: string) => void;
   onAddReflection: (data: Omit<ReflectionEntry, 'id' | 'createdAt'>) => void;
   onNavigate: (tab: AppTab) => void;
 }
@@ -62,12 +70,13 @@ function fmtTime(sec: number): string {
 }
 
 export default function JarvisScreen({
-  tasks, goals, habits, habitLogs = [], reflections = [],
+  tasks, goals, habits, habitLogs = [], reflections = [], desires = [],
   aiLanguage = 'hebrew', jarvisMode = 'coach', appearanceLevel = 'balanced',
   voiceShortcuts = [], accentColor, onClose,
   onMarkTaskDone, onCreateTask, onUpdateTask, onDeleteTask,
   onAddHabit, onToggleHabit, onDeleteHabit,
-  onCreateGoal, onDeleteGoal, onAddReflection, onNavigate,
+  onCreateGoal, onDeleteGoal, onUpdateGoalWhy, onAddDesire,
+  onAddReflection, onNavigate,
 }: Props) {
   const [state, setState]                 = useState<JarvisState>('idle');
   const [messages, setMessages]           = useState<Message[]>([]);
@@ -117,7 +126,7 @@ export default function JarvisScreen({
     addMsg('user', image ? `📷 ${question || 'תנתח את התמונה'}` : question);
     setState('thinking');
     try {
-      const body: Record<string, unknown> = { question, tasks, habits, goals, habitLogs, language: aiLanguage, jarvisMode, appearanceLevel };
+      const body: Record<string, unknown> = { question, tasks, habits, goals, habitLogs, desires, language: aiLanguage, jarvisMode, appearanceLevel };
       if (image) { body.imageBase64 = image.base64; body.imageMediaType = image.mediaType; }
       const res = await fetch('/api/jarvis', {
         method: 'POST',
@@ -146,7 +155,7 @@ export default function JarvisScreen({
       addMsg('jarvis', err);
       speakThen(err, () => startListening());
     }
-  }, [addMsg, tasks, habits, goals, habitLogs, aiLanguage, jarvisMode, appearanceLevel, speakThen, startListening]);
+  }, [addMsg, tasks, habits, goals, habitLogs, desires, aiLanguage, jarvisMode, appearanceLevel, speakThen, startListening]);
 
   const handleVoiceResult = useCallback((text: string) => {
     const lower = text.trim().toLowerCase();
@@ -219,11 +228,32 @@ export default function JarvisScreen({
     setPendingAction(null);
     try {
       if (action.type === 'mark_done') {
+        const relatedGoal = goals.find(g => g.status === 'active' && g.title.toLowerCase().split(' ').some(w => action.taskTitle.toLowerCase().includes(w)));
         onMarkTaskDone(action.taskId);
-        confirmDone();
+        confirmDone(relatedGoal ? `סיימת! זה מקדם אותך לעבר הייעד: "${relatedGoal.title}" 🎯` : 'בוצע! כל צעד קטן מצטבר 💪');
       } else if (action.type === 'create_task') {
-        onCreateTask({ title: action.title, priority: action.priority });
+        onCreateTask({ title: action.title, priority: action.priority, date: action.date, time: action.time });
         confirmDone('נוצר! רוצה שאוסיף עוד דברים קשורים לנושא?');
+      } else if (action.type === 'create_tasks_batch') {
+        action.tasks.forEach(t => onCreateTask({ title: t.title, priority: t.priority, date: t.date, time: t.time }));
+        confirmDone(`נוצרו ${action.tasks.length} משימות — ${action.planTitle}! 🚀`);
+      } else if (action.type === 'reschedule_day') {
+        addMsg('jarvis', action.summary);
+        speakThen(action.summary, () => startListening());
+        return;
+      } else if (action.type === 'update_goal_why') {
+        onUpdateGoalWhy(action.goalId, action.why);
+        confirmDone(`שמרתי את הסיבה שלך ל"${action.goalTitle}" — זה יעזור לי להניע אותך כשקשה 💡`);
+      } else if (action.type === 'add_desire') {
+        onAddDesire(action.text, action.emoji);
+        confirmDone('שמרתי את השאיפה שלך! רוצה שנבנה יחד תוכנית להגשמה?');
+      } else if (action.type === 'suggest_video') {
+        const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(action.searchQuery)}`;
+        window.open(url, '_blank', 'noopener noreferrer');
+        confirmDone(`פתחתי חיפוש ביוטיוב על "${action.topic}". תסתכל ותחזור אליי!`);
+      } else if (action.type === 'suggest_app') {
+        window.open(action.url, '_blank', 'noopener noreferrer');
+        confirmDone(`פתחתי את ${action.appName}. בהצלחה!`);
       } else if (action.type === 'edit_task') {
         onUpdateTask(action.taskId, { [action.field]: action.value });
         confirmDone(`עדכנתי את "${action.taskTitle}".`);
@@ -263,16 +293,15 @@ export default function JarvisScreen({
         const msg = `מתחיל ${mins} דקות ריכוז. בהצלחה!`;
         addMsg('jarvis', msg);
         speakThen(msg, () => startFocusTimer(mins, action.taskTitle || ''));
-      } else if (action.type === 'suggest_app') {
-        window.open(action.url, '_blank', 'noopener noreferrer');
-        confirmDone(`פתחתי את ${action.appName}. בהצלחה!`);
       }
     } catch {
       confirmDone();
     }
-  }, [pendingAction, focusMinutes, onMarkTaskDone, onCreateTask, onUpdateTask, onDeleteTask,
-      onAddHabit, onToggleHabit, onDeleteHabit, onCreateGoal, onDeleteGoal, onAddReflection,
-      onNavigate, onClose, confirmDone, addMsg, speakThen, startFocusTimer]);
+  }, [pendingAction, focusMinutes, goals,
+      onMarkTaskDone, onCreateTask, onUpdateTask, onDeleteTask,
+      onAddHabit, onToggleHabit, onDeleteHabit, onCreateGoal, onDeleteGoal,
+      onUpdateGoalWhy, onAddDesire, onAddReflection,
+      onNavigate, onClose, confirmDone, addMsg, speakThen, startListening, startFocusTimer]);
 
   const handleCancel = useCallback(() => {
     setPendingAction(null);
@@ -353,19 +382,24 @@ export default function JarvisScreen({
     : 'rgba(255,255,255,0.1)';
 
   const actionLabel = !pendingAction ? '' :
-    pendingAction.type === 'mark_done'      ? `✓ ${pendingAction.taskTitle}` :
-    pendingAction.type === 'create_task'    ? `+ משימה: ${pendingAction.title}` :
-    pendingAction.type === 'edit_task'      ? `✏️ ${pendingAction.taskTitle}` :
-    pendingAction.type === 'delete_task'    ? `🗑 מחק: ${pendingAction.taskTitle}` :
-    pendingAction.type === 'add_habit'      ? `${pendingAction.emoji} הרגל: ${pendingAction.title}` :
-    pendingAction.type === 'toggle_habit'   ? `✓ הרגל: ${pendingAction.habitTitle}` :
-    pendingAction.type === 'delete_habit'   ? `🗑 הרגל: ${pendingAction.habitTitle}` :
-    pendingAction.type === 'create_goal'    ? `🎯 יעד: ${pendingAction.title}` :
-    pendingAction.type === 'delete_goal'    ? `🗑 יעד: ${pendingAction.goalTitle}` :
-    pendingAction.type === 'navigate'       ? `🧭 נווט: ${pendingAction.tab}` :
-    pendingAction.type === 'add_reflection' ? `📔 רפלקציה יומית` :
-    pendingAction.type === 'start_focus'    ? `⏱ טיימר ריכוז` :
-    pendingAction.type === 'suggest_app'    ? `📱 ${pendingAction.appName}` : '';
+    pendingAction.type === 'mark_done'         ? `✓ ${pendingAction.taskTitle}` :
+    pendingAction.type === 'create_task'       ? `+ משימה: ${pendingAction.title}` :
+    pendingAction.type === 'create_tasks_batch'? `📋 ${pendingAction.planTitle} (${pendingAction.tasks.length} משימות)` :
+    pendingAction.type === 'reschedule_day'    ? `📅 ארגון לו"ז מחדש` :
+    pendingAction.type === 'edit_task'         ? `✏️ ${pendingAction.taskTitle}` :
+    pendingAction.type === 'delete_task'       ? `🗑 מחק: ${pendingAction.taskTitle}` :
+    pendingAction.type === 'add_habit'         ? `${pendingAction.emoji} הרגל: ${pendingAction.title}` :
+    pendingAction.type === 'toggle_habit'      ? `✓ הרגל: ${pendingAction.habitTitle}` :
+    pendingAction.type === 'delete_habit'      ? `🗑 הרגל: ${pendingAction.habitTitle}` :
+    pendingAction.type === 'create_goal'       ? `🎯 יעד: ${pendingAction.title}` :
+    pendingAction.type === 'delete_goal'       ? `🗑 יעד: ${pendingAction.goalTitle}` :
+    pendingAction.type === 'update_goal_why'   ? `💡 למה: ${pendingAction.goalTitle}` :
+    pendingAction.type === 'add_desire'        ? `${pendingAction.emoji} שאיפה: ${pendingAction.text}` :
+    pendingAction.type === 'navigate'          ? `🧭 נווט: ${pendingAction.tab}` :
+    pendingAction.type === 'add_reflection'    ? `📔 רפלקציה יומית` :
+    pendingAction.type === 'start_focus'       ? `⏱ טיימר ריכוז` :
+    pendingAction.type === 'suggest_app'       ? `📱 ${pendingAction.appName}` :
+    pendingAction.type === 'suggest_video'     ? `🎬 YouTube: ${pendingAction.topic}` : '';
 
   const isFocusAction = pendingAction?.type === 'start_focus';
 
@@ -548,6 +582,17 @@ export default function JarvisScreen({
             <div className="flex-shrink-0 px-4 pb-2 fade-up">
               <div className="rounded-2xl p-4" style={{ background: '#f59e0b14', border: '1px solid #f59e0b44' }}>
                 <p className="text-sm font-semibold mb-3" style={{ color: '#f59e0b' }}>{actionLabel}</p>
+                {pendingAction?.type === 'create_tasks_batch' && (
+                  <div className="mb-3 max-h-36 overflow-y-auto space-y-1">
+                    {pendingAction.tasks.map((t, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[11px] text-gray-300 px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        <span className="text-gray-600 w-4 text-center">{i + 1}</span>
+                        <span className="flex-1 truncate">{t.title}</span>
+                        {t.date && <span className="text-gray-600 flex-shrink-0">{t.date.slice(5)}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {isFocusAction && (
                   <div className="flex items-center justify-center gap-4 mb-3">
                     <button

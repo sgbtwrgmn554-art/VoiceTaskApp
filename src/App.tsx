@@ -6,6 +6,7 @@ import { useReminders } from './hooks/useReminders';
 import { useGoals } from './hooks/useGoals';
 import { useHabits } from './hooks/useHabits';
 import { useSettings } from './hooks/useSettings';
+import { useDesires } from './hooks/useDesires';
 import { requestNotificationPermission, setupMorningNotification } from './utils/notifications';
 import HomeScreen from './components/HomeScreen';
 import NewRecordingScreen from './components/NewRecordingScreen';
@@ -92,6 +93,7 @@ export default function App() {
   }, [settings.morningCheckInEnabled, settings.morningCheckInTime, tasks]);
 
   const { habits, logs: habitLogs, reflections, addHabit, updateHabit, deleteHabit, toggleToday, isDoneToday, streak, addReflection, todayReflection } = useHabits();
+  const { desires, addDesire, deleteDesire } = useDesires();
 
   const { goals, generatingFor, createGoal, updateGoal, deleteGoal, toggleMilestone, generateMilestones, milestoneToTask } = useGoals({
     onCreateTask: createTask,
@@ -210,11 +212,14 @@ export default function App() {
               goals={goals}
               domains={settings.customDomains}
               generatingFor={generatingFor}
+              desires={desires}
               onCreateGoal={createGoal}
               onToggleMilestone={toggleMilestone}
               onGenerateMilestones={generateMilestones}
               onMilestoneToTask={milestoneToTask}
               onDeleteGoal={deleteGoal}
+              onUpdateGoalWhy={(id, why) => updateGoal(id, { why })}
+              onDeleteDesire={deleteDesire}
               accentColor={accentColor}
             />
           </div>
@@ -256,6 +261,7 @@ export default function App() {
           habits={habits}
           habitLogs={habitLogs}
           reflections={reflections}
+          desires={desires}
           aiLanguage={settings.aiLanguage}
           aiStyle={settings.aiStyle}
           jarvisMode={settings.jarvisMode}
@@ -264,7 +270,13 @@ export default function App() {
           accentColor={accentColor}
           onClose={() => setShowJarvis(false)}
           onMarkTaskDone={markTaskDone}
-          onCreateTask={(input) => createTask({ title: input.title, priority: (input.priority as any) || 'medium' })}
+          onCreateTask={(input) => {
+            createTask({
+              title: input.title,
+              priority: (input.priority as any) || 'medium',
+              ...(input.date ? { reminder: { date: input.date, time: input.time || '09:00', recurrence: 'none' } } : {}),
+            });
+          }}
           onUpdateTask={(id, patch) => updateTask({ id, ...(patch as any) })}
           onDeleteTask={deleteTask}
           onAddHabit={addHabit}
@@ -272,7 +284,9 @@ export default function App() {
           onDeleteHabit={deleteHabit}
           onCreateGoal={createGoal}
           onDeleteGoal={deleteGoal}
+          onUpdateGoalWhy={(id, why) => updateGoal(id, { why })}
           onAddReflection={addReflection}
+          onAddDesire={addDesire}
           onNavigate={(t) => { setTab(t as AppTab); setShowJarvis(false); }}
         />
       )}
