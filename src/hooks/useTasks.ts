@@ -33,6 +33,7 @@ export function useTasks() {
       recurrence: input.recurrence,
       reminder: input.reminder,
       attachments: [],
+      url: input.url,
       createdAt: now,
       updatedAt: now,
     };

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Task, RecurrenceType, ClassifyResult, LifeDomainId, LifeDomain } from '../types';
 import { useVoice } from '../hooks/useVoice';
+import AppLinkInput from './AppLinkInput';
 
 type SmartSavePayload =
   | { kind: 'task'; data: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> }
@@ -61,6 +62,7 @@ export default function NewRecordingScreen({
   const [reminderMode, setReminderMode] = useState<'single' | 'window'>('single');
   const [windowEnd, setWindowEnd]     = useState('');
   const [repeatEvery, setRepeatEvery] = useState(30);
+  const [taskUrl, setTaskUrl]         = useState('');
   const [whatsapp, setWhatsapp]       = useState(false);
   const [phone, setPhone]             = useState(savedWhatsappPhone);
   const [category, setCategory]       = useState(defaultCategory);
@@ -170,6 +172,7 @@ export default function NewRecordingScreen({
         priority: preview?.priority || 'medium',
         category,
         attachments: [],
+        url: taskUrl || undefined,
         recurrence: recur !== 'none' ? recur : undefined,
         reminder: reminderTime
           ? {
@@ -480,6 +483,9 @@ export default function NewRecordingScreen({
                   className="w-full text-white text-sm rounded-2xl px-4 py-3.5 outline-none fade-up"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }} />
               )}
+
+              {/* App / Link */}
+              <AppLinkInput value={taskUrl} onChange={setTaskUrl} accentColor={accentColor} />
 
               {/* Attach */}
               <button onClick={() => fileRef.current?.click()}

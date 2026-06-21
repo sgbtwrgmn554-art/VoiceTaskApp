@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Habit, ReflectionEntry } from '../types';
 import { todayStr } from '../hooks/useHabits';
+import AppLinkInput, { LinkBadge } from './AppLinkInput';
 
 const DAYS_HE = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 const MOODS = ['😔', '😐', '🙂', '😊', '🤩'];
@@ -100,6 +101,9 @@ export default function HabitsScreen({
                       <p className="text-xs mt-0.5" style={{ color: h.color }}>🔥 {s} יום ברצף</p>
                     )}
                   </div>
+
+                  {/* Link badge */}
+                  {h.url && <LinkBadge url={h.url} accentColor={h.color} />}
 
                   {/* Delete */}
                   <button onClick={() => onDeleteHabit(h.id)} className="opacity-20 hover:opacity-60 transition-opacity px-1">
@@ -252,10 +256,11 @@ function AddHabitModal({ accentColor, onAdd, onClose }: {
   const [color, setColor]     = useState(accentColor);
   const [freq, setFreq]       = useState<'daily' | 'weekly'>('daily');
   const [days, setDays]       = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [url, setUrl]         = useState('');
 
   const submit = () => {
     if (!title.trim()) return;
-    onAdd({ title: title.trim(), emoji, color, frequency: freq, targetDays: freq === 'daily' ? [0,1,2,3,4,5,6] : days });
+    onAdd({ title: title.trim(), emoji, color, frequency: freq, targetDays: freq === 'daily' ? [0,1,2,3,4,5,6] : days, url: url || undefined });
   };
 
   const toggleDay = (d: number) => setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
@@ -317,6 +322,9 @@ function AddHabitModal({ accentColor, onAdd, onClose }: {
             ))}
           </div>
         )}
+
+        {/* App / Link */}
+        <AppLinkInput value={url} onChange={setUrl} accentColor={accentColor} />
 
         <button onClick={submit}
           className="w-full py-3 rounded-2xl text-sm font-bold transition-all active:scale-[0.98]"

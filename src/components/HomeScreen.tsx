@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Goal, Habit } from '../types';
+import { LinkBadge } from './AppLinkInput';
 
 interface Props {
   tasks: Task[];
@@ -344,6 +345,9 @@ function TaskRow({ task, index, done, onDone, onDelete, menuOpen, onMenuToggle, 
           )}
         </div>
       </div>
+
+      {/* Link badge */}
+      {task.url && <LinkBadge url={task.url} accentColor={accentColor} />}
 
       {/* Checkbox */}
       <button
