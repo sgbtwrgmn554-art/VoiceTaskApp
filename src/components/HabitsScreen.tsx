@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Habit, ReflectionEntry } from '../types';
 import { todayStr } from '../hooks/useHabits';
+import AppLinkInput, { LinkBadge } from './AppLinkInput';
 
 const DAYS_HE = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 const MOODS = ['😔', '😐', '🙂', '😊', '🤩'];
@@ -14,15 +15,17 @@ interface Props {
   streak: (id: string) => number;
   onToggle: (id: string) => boolean;
   onAddHabit: (data: Omit<Habit, 'id' | 'createdAt'>) => void;
+  onUpdateHabit: (id: string, data: Partial<Omit<Habit, 'id' | 'createdAt'>>) => void;
   onDeleteHabit: (id: string) => void;
   onAddReflection: (data: Omit<ReflectionEntry, 'id' | 'createdAt'>) => void;
   accentColor: string;
 }
 
 export default function HabitsScreen({
-  habits, todayReflection, isDoneToday, streak, onToggle, onAddHabit, onDeleteHabit, onAddReflection, accentColor
+  habits, todayReflection, isDoneToday, streak, onToggle, onAddHabit, onUpdateHabit, onDeleteHabit, onAddReflection, accentColor
 }: Props) {
   const [showAdd, setShowAdd] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [showReflection, setShowReflection] = useState(false);
   const [celebrate, setCelebrate] = useState<string | null>(null);
 
@@ -100,6 +103,17 @@ export default function HabitsScreen({
                       <p className="text-xs mt-0.5" style={{ color: h.color }}>🔥 {s} יום ברצף</p>
                     )}
                   </div>
+
+                  {/* Link badge */}
+                  {h.url && <LinkBadge url={h.url} accentColor={h.color} />}
+
+                  {/* Edit */}
+                  <button onClick={() => setEditingHabit(h)} className="opacity-20 hover:opacity-60 transition-opacity px-1">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
 
                   {/* Delete */}
                   <button onClick={() => onDeleteHabit(h.id)} className="opacity-20 hover:opacity-60 transition-opacity px-1">
@@ -181,6 +195,15 @@ export default function HabitsScreen({
         />
       )}
 
+      {editingHabit && (
+        <EditHabitModal
+          habit={editingHabit}
+          accentColor={accentColor}
+          onSave={(data) => { onUpdateHabit(editingHabit.id, data); setEditingHabit(null); }}
+          onClose={() => setEditingHabit(null)}
+        />
+      )}
+
       {showReflection && (
         <ReflectionModal
           accentColor={accentColor}
@@ -252,10 +275,11 @@ function AddHabitModal({ accentColor, onAdd, onClose }: {
   const [color, setColor]     = useState(accentColor);
   const [freq, setFreq]       = useState<'daily' | 'weekly'>('daily');
   const [days, setDays]       = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [url, setUrl]         = useState('');
 
   const submit = () => {
     if (!title.trim()) return;
-    onAdd({ title: title.trim(), emoji, color, frequency: freq, targetDays: freq === 'daily' ? [0,1,2,3,4,5,6] : days });
+    onAdd({ title: title.trim(), emoji, color, frequency: freq, targetDays: freq === 'daily' ? [0,1,2,3,4,5,6] : days, url: url || undefined });
   };
 
   const toggleDay = (d: number) => setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
@@ -317,6 +341,9 @@ function AddHabitModal({ accentColor, onAdd, onClose }: {
             ))}
           </div>
         )}
+
+        {/* App / Link */}
+        <AppLinkInput value={url} onChange={setUrl} accentColor={accentColor} />
 
         <button onClick={submit}
           className="w-full py-3 rounded-2xl text-sm font-bold transition-all active:scale-[0.98]"
@@ -386,6 +413,90 @@ function ReflectionModal({ accentColor, existing, onSave, onClose }: {
           className="w-full py-3 rounded-2xl text-sm font-bold transition-all active:scale-[0.98]"
           style={{ background: accentColor, color: '#000' }}>
           שמור
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EditHabitModal({ habit, accentColor, onSave, onClose }: {
+  habit: Habit;
+  accentColor: string;
+  onSave: (data: Partial<Omit<Habit, 'id' | 'createdAt'>>) => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(habit.title);
+  const [emoji, setEmoji] = useState(habit.emoji);
+  const [color, setColor] = useState(habit.color);
+  const [freq, setFreq]   = useState<'daily' | 'weekly'>(habit.frequency);
+  const [days, setDays]   = useState<number[]>(habit.targetDays);
+  const [url, setUrl]     = useState(habit.url || '');
+
+  const submit = () => {
+    if (!title.trim()) return;
+    onSave({ title: title.trim(), emoji, color, frequency: freq, targetDays: freq === 'daily' ? [0,1,2,3,4,5,6] : days, url: url || undefined });
+  };
+
+  const toggleDay = (d: number) => setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={onClose}>
+      <div className="w-full rounded-t-3xl p-5 pb-8 space-y-4" style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
+        <div className="w-8 h-1 rounded-full bg-gray-700 mx-auto mb-2" />
+        <h2 className="text-base font-bold text-center">✏️ ערוך הרגל</h2>
+
+        <div className="flex flex-wrap gap-2 justify-center">
+          {DEFAULT_EMOJIS.map(e => (
+            <button key={e} onClick={() => setEmoji(e)}
+              className="text-xl w-9 h-9 rounded-xl transition-all"
+              style={{ background: emoji === e ? accentColor + '33' : 'rgba(255,255,255,0.05)', border: emoji === e ? `1px solid ${accentColor}` : 'none' }}>
+              {e}
+            </button>
+          ))}
+        </div>
+
+        <input
+          value={title} onChange={e => setTitle(e.target.value)}
+          placeholder="שם ההרגל..." dir="rtl" autoFocus
+          className="w-full bg-black/30 rounded-xl px-4 py-3 text-sm outline-none border border-white/10 text-white placeholder-gray-600"
+        />
+
+        <div className="flex gap-2 justify-center">
+          {DEFAULT_COLORS.map(c => (
+            <button key={c} onClick={() => setColor(c)}
+              className="w-7 h-7 rounded-full transition-all"
+              style={{ background: c, border: color === c ? '2px solid white' : '2px solid transparent' }} />
+          ))}
+        </div>
+
+        <div className="flex gap-2">
+          {(['daily', 'weekly'] as const).map(f => (
+            <button key={f} onClick={() => setFreq(f)}
+              className="flex-1 py-2 rounded-xl text-sm transition-all"
+              style={{ background: freq === f ? accentColor + '22' : 'rgba(255,255,255,0.05)', color: freq === f ? accentColor : '#9ca3af', border: freq === f ? `1px solid ${accentColor}40` : 'none' }}>
+              {f === 'daily' ? 'יומי' : 'שבועי'}
+            </button>
+          ))}
+        </div>
+
+        {freq === 'weekly' && (
+          <div className="flex gap-1 justify-center">
+            {DAYS_HE.map((d, i) => (
+              <button key={i} onClick={() => toggleDay(i)}
+                className="w-9 h-9 rounded-xl text-xs font-medium transition-all"
+                style={{ background: days.includes(i) ? accentColor : 'rgba(255,255,255,0.05)', color: days.includes(i) ? '#000' : '#9ca3af' }}>
+                {d}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <AppLinkInput value={url} onChange={setUrl} accentColor={accentColor} />
+
+        <button onClick={submit}
+          className="w-full py-3 rounded-2xl text-sm font-bold transition-all active:scale-[0.98]"
+          style={{ background: accentColor, color: '#000' }}>
+          שמור שינויים
         </button>
       </div>
     </div>

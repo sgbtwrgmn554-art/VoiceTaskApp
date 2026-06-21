@@ -34,6 +34,7 @@ export interface Task {
   recurrence?: RecurrenceType;
   reminder?: Reminder;
   attachments: Attachment[];
+  url?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,6 +71,7 @@ export interface CreateTaskInput {
   status?: TaskStatus;
   reminder?: Reminder;
   recurrence?: RecurrenceType;
+  url?: string;
 }
 
 export interface UpdateTaskInput {
@@ -80,6 +82,7 @@ export interface UpdateTaskInput {
   priority?: TaskPriority;
   category?: TaskCategory;
   reminder?: Reminder;
+  url?: string;
 }
 
 export type ToolName =
@@ -155,6 +158,7 @@ export interface Habit {
   frequency: 'daily' | 'weekly';
   targetDays: number[]; // 0=Sun … 6=Sat (for weekly)
   color: string;
+  url?: string;
   createdAt: string;
 }
 

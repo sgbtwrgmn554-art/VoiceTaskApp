@@ -47,6 +47,11 @@ export function useHabits() {
     persist(habits.filter(h => h.id !== id), logs.filter(l => l.habitId !== id));
   }, [habits, logs, persist]);
 
+  const updateHabit = useCallback((id: string, data: Partial<Omit<Habit, 'id' | 'createdAt'>>) => {
+    const next = habits.map(h => h.id === id ? { ...h, ...data } : h);
+    persist(next, logs);
+  }, [habits, logs, persist]);
+
   const toggleToday = useCallback((habitId: string) => {
     const today = todayStr();
     const exists = logs.find(l => l.habitId === habitId && l.date === today);
@@ -76,5 +81,5 @@ export function useHabits() {
 
   const todayReflection = reflections.find(r => r.date === todayStr()) ?? null;
 
-  return { habits, logs, reflections, addHabit, deleteHabit, toggleToday, isDoneToday, streak, addReflection, todayReflection };
+  return { habits, logs, reflections, addHabit, updateHabit, deleteHabit, toggleToday, isDoneToday, streak, addReflection, todayReflection };
 }

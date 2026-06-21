@@ -89,7 +89,7 @@ export default function App() {
     return setupMorningNotification(settings.morningCheckInEnabled, settings.morningCheckInTime, tasks);
   }, [settings.morningCheckInEnabled, settings.morningCheckInTime, tasks]);
 
-  const { habits, logs: habitLogs, reflections, addHabit, deleteHabit, toggleToday, isDoneToday, streak, addReflection, todayReflection } = useHabits();
+  const { habits, logs: habitLogs, reflections, addHabit, updateHabit, deleteHabit, toggleToday, isDoneToday, streak, addReflection, todayReflection } = useHabits();
 
   const { goals, generatingFor, createGoal, updateGoal, deleteGoal, toggleMilestone, generateMilestones, milestoneToTask } = useGoals({
     onCreateTask: createTask,
@@ -196,6 +196,7 @@ export default function App() {
               streak={streak}
               onToggle={toggleToday}
               onAddHabit={addHabit}
+              onUpdateHabit={updateHabit}
               onDeleteHabit={deleteHabit}
               onAddReflection={addReflection}
               accentColor={accentColor}

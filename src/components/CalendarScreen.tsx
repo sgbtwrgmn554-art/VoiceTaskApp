@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Habit, HabitLog } from '../types';
+import { LinkBadge } from './AppLinkInput';
 
 interface Props {
   tasks: Task[];
@@ -71,6 +72,7 @@ export default function CalendarScreen({ tasks, habits, habitLogs, accentColor }
     time?: string;
     done: boolean;
     color: string;
+    url?: string;
   }
 
   const timedItems: CalItem[] = [];
@@ -79,14 +81,14 @@ export default function CalendarScreen({ tasks, habits, habitLogs, accentColor }
 
   dayHabits.forEach(h => {
     const done = habitLogs.some(l => l.habitId === h.id && l.date === selStr);
-    const item: CalItem = { id: h.id, kind: 'habit', title: h.title, emoji: h.emoji, done, color: h.color };
+    const item: CalItem = { id: h.id, kind: 'habit', title: h.title, emoji: h.emoji, done, color: h.color, url: h.url };
     untimedHabits.push(item);
   });
 
   dayTasks.forEach(t => {
     const item: CalItem = {
       id: t.id, kind: 'task', title: t.title,
-      time: t.reminder?.time, done: t.status === 'done', color: accentColor,
+      time: t.reminder?.time, done: t.status === 'done', color: accentColor, url: t.url,
     };
     if (t.reminder?.time) timedItems.push(item);
     else untimedTasks.push(item);
@@ -191,6 +193,7 @@ export default function CalendarScreen({ tasks, habits, habitLogs, accentColor }
                       <span className={`text-sm flex-1 ${h.done ? 'line-through' : 'text-white'}`}
                             style={{ color: h.done ? h.color : undefined }}>{h.title}</span>
                       {h.done && <span className="text-xs font-bold" style={{ color: h.color }}>✓</span>}
+                      {h.url && <LinkBadge url={h.url} accentColor={accentColor} />}
                     </div>
                   ))}
                 </div>
@@ -213,6 +216,7 @@ export default function CalendarScreen({ tasks, habits, habitLogs, accentColor }
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm truncate ${item.done ? 'line-through text-gray-500' : 'text-white'}`}>{item.title}</p>
                           </div>
+                          {item.url && <LinkBadge url={item.url} accentColor={accentColor} />}
                         </div>
                         <div className="w-11 text-right flex-shrink-0">
                           <span className="text-xs font-mono" style={{ color: item.color }}>{item.time}</span>
@@ -234,6 +238,7 @@ export default function CalendarScreen({ tasks, habits, habitLogs, accentColor }
                          style={{ animationDelay: `${i * 0.04}s`, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.done ? '#4b5563' : accentColor }} />
                       <p className={`text-sm flex-1 ${t.done ? 'line-through text-gray-500' : 'text-white'}`}>{t.title}</p>
+                      {t.url && <LinkBadge url={t.url} accentColor={accentColor} />}
                     </div>
                   ))}
                 </div>
