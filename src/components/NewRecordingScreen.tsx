@@ -58,6 +58,9 @@ export default function NewRecordingScreen({
   const [text, setText]               = useState('');
   const [recurrence, setRecur]        = useState<RecurrenceType>('none');
   const [time, setTime]               = useState(defaultReminderTime);
+  const [reminderMode, setReminderMode] = useState<'single' | 'window'>('single');
+  const [windowEnd, setWindowEnd]     = useState('');
+  const [repeatEvery, setRepeatEvery] = useState(30);
   const [whatsapp, setWhatsapp]       = useState(false);
   const [phone, setPhone]             = useState(savedWhatsappPhone);
   const [category, setCategory]       = useState(defaultCategory);
@@ -157,6 +160,7 @@ export default function NewRecordingScreen({
         ? (preview.recurrence === 'none' ? 'daily' : (preview.recurrence as RecurrenceType))
         : recurrence;
 
+    const reminderTime = time || preview?.dueTime;
     onSmartSave({
       kind: 'task',
       data: {
@@ -167,8 +171,15 @@ export default function NewRecordingScreen({
         category,
         attachments: [],
         recurrence: recur !== 'none' ? recur : undefined,
-        reminder: (time || preview?.dueTime)
-          ? { date: preview?.dueDate || new Date().toISOString().split('T')[0], time: time || preview!.dueTime!, recurrence: recur, whatsapp, whatsappPhone: phone }
+        reminder: reminderTime
+          ? {
+              date: preview?.dueDate || new Date().toISOString().split('T')[0],
+              time: reminderTime,
+              recurrence: recur,
+              whatsapp,
+              whatsappPhone: phone,
+              ...(reminderMode === 'window' && windowEnd ? { windowEnd, repeatEvery } : {}),
+            }
           : undefined,
       },
     });
@@ -398,12 +409,57 @@ export default function NewRecordingScreen({
                 </div>
               </div>
 
-              {/* Time */}
+              {/* Time / Reminder Window */}
               <div>
-                <p className="text-sm text-gray-300 mb-2.5">⏰ שעת תזכורת</p>
-                <input type="time" value={time} onChange={e => setTime(e.target.value)}
-                  className="w-full text-white text-xl text-left rounded-2xl px-4 py-3.5 outline-none"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', colorScheme: 'dark' }} />
+                <div className="flex gap-2 mb-3">
+                  {(['single', 'window'] as const).map(mode => (
+                    <button key={mode} onClick={() => setReminderMode(mode)}
+                      className="flex-1 py-2 rounded-xl text-sm font-medium transition-all active:scale-95"
+                      style={reminderMode === mode
+                        ? { background: accentColor, color: '#000' }
+                        : { background: 'rgba(255,255,255,0.06)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      {mode === 'single' ? '⏰ שעה בודדת' : '🔁 חלון זמן'}
+                    </button>
+                  ))}
+                </div>
+
+                {reminderMode === 'single' ? (
+                  <input type="time" value={time} onChange={e => setTime(e.target.value)}
+                    className="w-full text-white text-xl text-left rounded-2xl px-4 py-3.5 outline-none"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', colorScheme: 'dark' }} />
+                ) : (
+                  <div className="space-y-3 fade-up">
+                    <div className="flex gap-3 items-end">
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500 mb-1.5">התחלה</p>
+                        <input type="time" value={time} onChange={e => setTime(e.target.value)}
+                          className="w-full text-white rounded-xl px-3 py-2.5 outline-none text-center"
+                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', colorScheme: 'dark' }} />
+                      </div>
+                      <div className="pb-2.5 text-gray-600 text-lg">→</div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-500 mb-1.5">סיום</p>
+                        <input type="time" value={windowEnd} onChange={e => setWindowEnd(e.target.value)}
+                          className="w-full text-white rounded-xl px-3 py-2.5 outline-none text-center"
+                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', colorScheme: 'dark' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">תזכורת כל</p>
+                      <div className="flex gap-2">
+                        {[15, 30, 60].map(min => (
+                          <button key={min} onClick={() => setRepeatEvery(min)}
+                            className="flex-1 py-2 rounded-xl text-sm font-medium transition-all active:scale-95"
+                            style={repeatEvery === min
+                              ? { background: accentColor, color: '#000' }
+                              : { background: 'rgba(255,255,255,0.06)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            {min === 60 ? 'שעה' : `${min} דק׳`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* WhatsApp toggle */}

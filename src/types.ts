@@ -12,6 +12,8 @@ export interface Reminder {
   lastNotified?: string;
   whatsapp?: boolean;
   whatsappPhone?: string;
+  windowEnd?: string;    // HH:MM — end of reminder window
+  repeatEvery?: number;  // minutes between repeats within the window
 }
 
 export interface Attachment {

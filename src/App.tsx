@@ -16,6 +16,7 @@ import HabitsScreen from './components/HabitsScreen';
 import AuthScreen from './components/AuthScreen';
 import ProfileScreen from './components/ProfileScreen';
 import JarvisScreen from './components/JarvisScreen';
+import OnboardingScreen from './components/OnboardingScreen';
 
 const ACCENT_COLORS: Record<ThemeColor, string> = {
   orange: '#f97316',
@@ -32,6 +33,7 @@ export default function App() {
   const [tab, setTab] = useState<AppTab>('home');
   const [showNewRecording, setShowNewRecording] = useState(false);
   const [showJarvis, setShowJarvis] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(() => {
     const saved = localStorage.getItem('vt_user');
     return saved ? JSON.parse(saved) : null;
@@ -52,7 +54,18 @@ export default function App() {
     const u = { email };
     localStorage.setItem('vt_user', JSON.stringify(u));
     setUser(u);
+    // Show onboarding for new users
+    if (!localStorage.getItem('vt_onboarding_done')) {
+      setShowOnboarding(true);
+    }
   };
+
+  // Check onboarding on mount for existing users
+  useEffect(() => {
+    if (user && !localStorage.getItem('vt_onboarding_done')) {
+      setShowOnboarding(true);
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('vt_user');
@@ -103,6 +116,18 @@ export default function App() {
       <div className="flex flex-col h-full bg-black text-white">
         <AuthScreen onAuth={handleAuth} />
       </div>
+    );
+  }
+
+  if (showOnboarding) {
+    return (
+      <OnboardingScreen
+        accentColor={accentColor}
+        onDone={() => {
+          localStorage.setItem('vt_onboarding_done', '1');
+          setShowOnboarding(false);
+        }}
+      />
     );
   }
 
@@ -160,7 +185,7 @@ export default function App() {
           </div>
         ) : tab === 'calendar' ? (
           <div key="calendar" className="h-full tab-in">
-            <CalendarScreen tasks={tasks} accentColor={accentColor} />
+            <CalendarScreen tasks={tasks} habits={habits} habitLogs={habitLogs} accentColor={accentColor} />
           </div>
         ) : tab === 'habits' ? (
           <div key="habits" className="h-full tab-in">
@@ -209,6 +234,10 @@ export default function App() {
               onRemoveDomain={removeDomain}
               onThemeChange={(t) => updateSettings({ theme: t })}
               onLogout={handleLogout}
+              onOpenGuide={() => {
+                localStorage.removeItem('vt_onboarding_done');
+                setShowOnboarding(true);
+              }}
             />
           </div>
         )}
@@ -228,8 +257,15 @@ export default function App() {
           onClose={() => setShowJarvis(false)}
           onMarkTaskDone={markTaskDone}
           onCreateTask={(input) => createTask({ title: input.title, priority: (input.priority as any) || 'medium' })}
+          onUpdateTask={(id, patch) => updateTask({ id, ...(patch as any) })}
+          onDeleteTask={deleteTask}
           onAddHabit={addHabit}
+          onToggleHabit={toggleToday}
+          onDeleteHabit={deleteHabit}
           onCreateGoal={createGoal}
+          onDeleteGoal={deleteGoal}
+          onAddReflection={addReflection}
+          onNavigate={(t) => { setTab(t as AppTab); setShowJarvis(false); }}
         />
       )}
 

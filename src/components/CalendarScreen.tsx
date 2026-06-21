@@ -1,32 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Task } from '../types';
+import { Task, Habit, HabitLog } from '../types';
 
-interface Props { tasks: Task[]; accentColor: string; }
+interface Props {
+  tasks: Task[];
+  habits: Habit[];
+  habitLogs: HabitLog[];
+  accentColor: string;
+}
 
-const DAYS_HE = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+const DAYS_HE  = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 const MONTHS_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
-export default function CalendarScreen({ tasks, accentColor }: Props) {
-  const [current, setCurrent] = useState(new Date());
+function timeToMin(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+export default function CalendarScreen({ tasks, habits, habitLogs, accentColor }: Props) {
+  const [current,  setCurrent]  = useState(new Date());
   const [selected, setSelected] = useState(new Date());
-  const [visible, setVisible] = useState(false);
+  const [visible,  setVisible]  = useState(false);
 
   useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
 
-  const year = current.getFullYear();
+  const year  = current.getFullYear();
   const month = current.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
+  const firstDay    = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
 
-  const tasksByDay = new Map<number, Task[]>();
+  // Dot markers on calendar grid
+  const dotDays = new Set<number>();
   tasks.forEach(t => {
     if (!t.reminder?.date) return;
     const [y, m, d] = t.reminder.date.split('-').map(Number);
-    if (y === year && m - 1 === month) {
-      if (!tasksByDay.has(d)) tasksByDay.set(d, []);
-      tasksByDay.get(d)!.push(t);
-    }
+    if (y === year && m - 1 === month) dotDays.add(d);
   });
 
   const cells: (number | null)[] = [];
@@ -34,37 +42,82 @@ export default function CalendarScreen({ tasks, accentColor }: Props) {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const selDay = selected.getDate();
+  const selDay   = selected.getDate();
   const selMonth = selected.getMonth();
-  const selYear = selected.getFullYear();
+  const selYear  = selected.getFullYear();
+  const selStr   = `${selYear}-${String(selMonth + 1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}`;
+  const selDow   = selected.getDay();
 
+  // Tasks for selected day
   const dayTasks = tasks.filter(t => {
     if (!t.reminder?.date) return false;
     const [y, m, d] = t.reminder.date.split('-').map(Number);
     return y === selYear && m - 1 === selMonth && d === selDay;
   });
 
-  const prevMonth = () => setCurrent(new Date(year, month - 1, 1));
-  const nextMonth = () => setCurrent(new Date(year, month + 1, 1));
+  // Habits for selected day (based on frequency/targetDays)
+  const dayHabits = habits.filter(h => {
+    if (h.frequency === 'daily') return true;
+    if (h.frequency === 'weekly') return h.targetDays.includes(selDow);
+    return false;
+  });
+
+  // Sort items by time (tasks with time, habits with time)
+  interface CalItem {
+    id: string;
+    kind: 'task' | 'habit';
+    title: string;
+    emoji?: string;
+    time?: string;
+    done: boolean;
+    color: string;
+  }
+
+  const timedItems: CalItem[] = [];
+  const untimedHabits: CalItem[] = [];
+  const untimedTasks: CalItem[] = [];
+
+  dayHabits.forEach(h => {
+    const done = habitLogs.some(l => l.habitId === h.id && l.date === selStr);
+    const item: CalItem = { id: h.id, kind: 'habit', title: h.title, emoji: h.emoji, done, color: h.color };
+    untimedHabits.push(item);
+  });
+
+  dayTasks.forEach(t => {
+    const item: CalItem = {
+      id: t.id, kind: 'task', title: t.title,
+      time: t.reminder?.time, done: t.status === 'done', color: accentColor,
+    };
+    if (t.reminder?.time) timedItems.push(item);
+    else untimedTasks.push(item);
+  });
+
+  timedItems.sort((a, b) => timeToMin(a.time!) - timeToMin(b.time!));
+
+  const totalItems = dayHabits.length + dayTasks.length;
 
   return (
-    <div className="flex flex-col h-full bg-black">
+    <div className="flex flex-col h-full bg-black" dir="rtl">
       {/* Header */}
-      <div className="px-4 pt-4 pb-2">
+      <div className="px-4 pt-4 pb-2 flex-shrink-0">
         <h2 className="text-center font-bold text-lg mb-4"
             style={{ opacity: visible ? 1 : 0, transform: visible ? 'none' : 'translateY(-10px)', transition: 'all 0.4s ease' }}>
           📅 קלנדר
         </h2>
 
         {/* Month navigator */}
-        <div className="flex items-center justify-between mb-3 bg-gray-900 rounded-2xl px-4 py-3"
-             style={{ opacity: visible ? 1 : 0, transition: 'all 0.4s ease 0.1s' }}>
-          <button onClick={nextMonth} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-gray-700 transition-colors">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        <div className="flex items-center justify-between mb-3 rounded-2xl px-4 py-3"
+             style={{ background: 'rgba(255,255,255,0.05)', opacity: visible ? 1 : 0, transition: 'all 0.4s ease 0.1s' }}>
+          <button onClick={() => setCurrent(new Date(year, month + 1, 1))}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
-          <span className="font-semibold text-base">{MONTHS_HE[month]} {year}</span>
-          <button onClick={prevMonth} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-gray-700 transition-colors">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          <span className="font-semibold text-base text-white">{MONTHS_HE[month]} {year}</span>
+          <button onClick={() => setCurrent(new Date(year, month - 1, 1))}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
         </div>
 
@@ -81,14 +134,11 @@ export default function CalendarScreen({ tasks, accentColor }: Props) {
              style={{ opacity: visible ? 1 : 0, transition: 'all 0.4s ease 0.2s' }}>
           {cells.map((day, i) => {
             if (!day) return <div key={i} />;
-            const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+            const isToday    = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
             const isSelected = day === selDay && month === selMonth && year === selYear;
-            const dayTaskList = tasksByDay.get(day) || [];
-            const hasTasks = dayTaskList.length > 0;
-
+            const hasDot     = dotDays.has(day);
             return (
-              <button
-                key={i}
+              <button key={i}
                 onClick={() => setSelected(new Date(year, month, day))}
                 className="aspect-square rounded-full flex flex-col items-center justify-center text-sm relative transition-all duration-200 active:scale-90"
                 style={isSelected
@@ -98,11 +148,9 @@ export default function CalendarScreen({ tasks, accentColor }: Props) {
                   : { color: '#d1d5db' }}
               >
                 {day}
-                {hasTasks && (
-                  <span
-                    className="absolute bottom-[3px] w-1.5 h-1.5 rounded-full"
-                    style={{ background: isSelected ? '#000' : accentColor }}
-                  />
+                {hasDot && (
+                  <span className="absolute bottom-[3px] w-1.5 h-1.5 rounded-full"
+                        style={{ background: isSelected ? '#000' : accentColor }} />
                 )}
               </button>
             );
@@ -110,46 +158,88 @@ export default function CalendarScreen({ tasks, accentColor }: Props) {
         </div>
       </div>
 
-      {/* Divider */}
-      <div className="h-px bg-gray-800 mx-4 my-3" />
+      <div className="h-px mx-4 my-3 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.07)' }} />
 
-      {/* Selected day tasks */}
-      <div className="flex-1 scroll-y px-4 pb-4">
-        <div className="flex items-center justify-between mb-3"
-             style={{ opacity: visible ? 1 : 0, transition: 'all 0.4s ease 0.3s' }}>
-          <p className="text-sm font-semibold text-white">
-            {selDay} {MONTHS_HE[selMonth]}
-          </p>
-          <span className="text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded-full">
-            {dayTasks.length} משימות
+      {/* Day detail */}
+      <div className="flex-1 overflow-y-auto px-4 pb-6"
+           style={{ opacity: visible ? 1 : 0, transition: 'all 0.4s ease 0.3s' }}>
+
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm font-bold text-white">{selDay} {MONTHS_HE[selMonth]}</p>
+          <span className="text-xs text-gray-500 px-2 py-1 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.06)' }}>
+            {totalItems} פריטים
           </span>
         </div>
 
-        {dayTasks.length === 0 ? (
+        {totalItems === 0 ? (
           <div className="text-center mt-10 fade-up">
             <div className="text-3xl mb-2">✨</div>
-            <p className="text-gray-600 text-sm">אין משימות ביום זה</p>
+            <p className="text-gray-600 text-sm">יום פנוי — ליהנות!</p>
           </div>
         ) : (
-          dayTasks.map((t, idx) => (
-            <div
-              key={t.id}
-              className="flex items-center gap-3 py-3 border-b border-gray-800 fade-up"
-              style={{ animationDelay: `${idx * 0.06}s` }}
-            >
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: accentColor }} />
-              <div className="flex-1">
-                <p className={`text-sm ${t.status === 'done' ? 'line-through text-gray-500' : 'text-white'}`}>{t.title}</p>
-                {t.category && <p className="text-xs text-gray-600 mt-0.5">{t.category}</p>}
+          <div className="space-y-2">
+            {/* Habits (no time — shown first as chips) */}
+            {untimedHabits.length > 0 && (
+              <div className="mb-3">
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">הרגלים</p>
+                <div className="space-y-1.5">
+                  {untimedHabits.map((h, i) => (
+                    <div key={h.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl fade-up"
+                         style={{ animationDelay: `${i * 0.04}s`, background: h.done ? h.color + '18' : 'rgba(255,255,255,0.04)', border: `1px solid ${h.done ? h.color + '44' : 'rgba(255,255,255,0.07)'}` }}>
+                      <span className="text-base">{h.emoji}</span>
+                      <span className={`text-sm flex-1 ${h.done ? 'line-through' : 'text-white'}`}
+                            style={{ color: h.done ? h.color : undefined }}>{h.title}</span>
+                      {h.done && <span className="text-xs font-bold" style={{ color: h.color }}>✓</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
-              {t.reminder?.time && (
-                <span className="text-xs text-gray-500 flex items-center gap-1">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  {t.reminder.time}
-                </span>
-              )}
-            </div>
-          ))
+            )}
+
+            {/* Timed items on timeline */}
+            {timedItems.length > 0 && (
+              <div className="mb-3">
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">לפי שעה</p>
+                <div className="relative">
+                  <div className="absolute right-[44px] top-0 bottom-0 w-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                  <div className="space-y-2">
+                    {timedItems.map((item, i) => (
+                      <div key={item.id} className="flex items-center gap-3 fade-up"
+                           style={{ animationDelay: `${i * 0.05}s` }}>
+                        <div className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                             style={{ background: item.done ? item.color + '14' : 'rgba(255,255,255,0.04)', border: `1px solid ${item.done ? item.color + '33' : 'rgba(255,255,255,0.07)'}` }}>
+                          {item.emoji && <span className="text-base">{item.emoji}</span>}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm truncate ${item.done ? 'line-through text-gray-500' : 'text-white'}`}>{item.title}</p>
+                          </div>
+                        </div>
+                        <div className="w-11 text-right flex-shrink-0">
+                          <span className="text-xs font-mono" style={{ color: item.color }}>{item.time}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Untimed tasks */}
+            {untimedTasks.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">משימות</p>
+                <div className="space-y-1.5">
+                  {untimedTasks.map((t, i) => (
+                    <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl fade-up"
+                         style={{ animationDelay: `${i * 0.04}s`, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.done ? '#4b5563' : accentColor }} />
+                      <p className={`text-sm flex-1 ${t.done ? 'line-through text-gray-500' : 'text-white'}`}>{t.title}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

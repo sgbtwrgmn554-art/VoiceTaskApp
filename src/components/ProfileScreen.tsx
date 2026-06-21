@@ -19,6 +19,7 @@ interface Props {
   onRemoveDomain: (id: string) => void;
   onThemeChange: (t: ThemeColor) => void;
   onLogout: () => void;
+  onOpenGuide?: () => void;
 }
 
 const THEMES: { value: ThemeColor; label: string; color: string }[] = [
@@ -227,7 +228,7 @@ export default function ProfileScreen({
   tasks, habits, habitLogs, goals, reflections,
   onUpdateSettings, onAddCategory, onRemoveCategory, onRenameCategory,
   onAddDomain, onUpdateDomain, onRemoveDomain,
-  onThemeChange, onLogout,
+  onThemeChange, onLogout, onOpenGuide,
 }: Props) {
   const [newCat, setNewCat]               = useState('');
   const [editingCat, setEditingCat]       = useState<string | null>(null);
@@ -643,6 +644,19 @@ export default function ProfileScreen({
         {/* ── PRIVACY ── */}
         <SectionHeader emoji="🔒" title="פרטיות ונתונים" />
         <Card>
+          {onOpenGuide && (
+            <button
+              onClick={onOpenGuide}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-sm text-gray-200 hover:bg-white/5 transition-colors border-b"
+              style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+              <span>📖</span>
+              <span>מדריך למשתמש</span>
+              <svg className="mr-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          )}
+
           <button
             onClick={handleExport}
             className="w-full flex items-center gap-3 px-4 py-3.5 text-sm text-gray-200 hover:bg-white/5 transition-colors border-b"
