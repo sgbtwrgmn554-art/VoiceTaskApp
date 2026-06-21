@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Task, Goal, Habit, HabitLog, ReflectionEntry } from '../types';
+import { Task, Goal, Habit, HabitLog, ReflectionEntry, AppTab } from '../types';
 import { useSpeech } from '../hooks/useSpeech';
 
 type JarvisState = 'idle' | 'loading' | 'speaking' | 'listening' | 'thinking' | 'confirming' | 'focus' | 'weekly';
@@ -9,8 +9,15 @@ interface Message { role: 'jarvis' | 'user'; text: string; }
 type JarvisAction =
   | { type: 'mark_done'; taskId: string; taskTitle: string }
   | { type: 'create_task'; title: string; priority?: string }
+  | { type: 'edit_task'; taskId: string; taskTitle: string; field: string; value: string }
+  | { type: 'delete_task'; taskId: string; taskTitle: string }
   | { type: 'add_habit'; title: string; emoji: string; frequency: 'daily' | 'weekly'; targetDays: number[]; color: string }
+  | { type: 'toggle_habit'; habitId: string; habitTitle: string }
+  | { type: 'delete_habit'; habitId: string; habitTitle: string }
   | { type: 'create_goal'; title: string; domainId?: string; description?: string }
+  | { type: 'delete_goal'; goalId: string; goalTitle: string }
+  | { type: 'navigate'; tab: AppTab }
+  | { type: 'add_reflection'; gratitude: string; learning: string; tomorrowFocus: string; mood: 1|2|3|4|5 }
   | { type: 'start_focus'; minutes: number; taskTitle?: string }
   | { type: 'weekly_review' };
 
@@ -28,8 +35,15 @@ interface Props {
   onClose: () => void;
   onMarkTaskDone: (id: string) => void;
   onCreateTask: (input: { title: string; priority?: string }) => void;
+  onUpdateTask: (id: string, patch: Record<string, unknown>) => void;
+  onDeleteTask: (id: string) => void;
   onAddHabit: (data: Omit<Habit, 'id' | 'createdAt'>) => void;
+  onToggleHabit: (id: string) => void;
+  onDeleteHabit: (id: string) => void;
   onCreateGoal: (title: string, domainId: string, description?: string) => void;
+  onDeleteGoal: (id: string) => void;
+  onAddReflection: (data: Omit<ReflectionEntry, 'id' | 'createdAt'>) => void;
+  onNavigate: (tab: AppTab) => void;
 }
 
 const SpeechRecognitionAPI =
@@ -46,7 +60,9 @@ function fmtTime(sec: number): string {
 export default function JarvisScreen({
   tasks, goals, habits, habitLogs = [], reflections = [],
   aiLanguage = 'hebrew', accentColor, onClose,
-  onMarkTaskDone, onCreateTask, onAddHabit, onCreateGoal,
+  onMarkTaskDone, onCreateTask, onUpdateTask, onDeleteTask,
+  onAddHabit, onToggleHabit, onDeleteHabit,
+  onCreateGoal, onDeleteGoal, onAddReflection, onNavigate,
 }: Props) {
   const [state, setState]                 = useState<JarvisState>('idle');
   const [messages, setMessages]           = useState<Message[]>([]);
@@ -96,7 +112,7 @@ export default function JarvisScreen({
       const res = await fetch('/api/jarvis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, tasks, habits, goals, language: aiLanguage }),
+        body: JSON.stringify({ question, tasks, habits, goals, habitLogs, language: aiLanguage }),
       });
       const data = await res.json();
       const text = data.text || 'מצטער, לא הצלחתי לקבל תשובה.';
@@ -174,6 +190,11 @@ export default function JarvisScreen({
     speakThen(msg, () => startListening());
   }, [addMsg, speakThen, startListening]);
 
+  const confirmDone = useCallback((msg = 'בוצע!') => {
+    addMsg('jarvis', msg);
+    speakThen(msg, () => startListening());
+  }, [addMsg, speakThen, startListening]);
+
   const handleConfirm = useCallback(() => {
     if (!pendingAction) return;
     const action = pendingAction;
@@ -181,24 +202,44 @@ export default function JarvisScreen({
     try {
       if (action.type === 'mark_done') {
         onMarkTaskDone(action.taskId);
-        const done = 'בוצע!';
-        addMsg('jarvis', done);
-        speakThen(done, () => startListening());
+        confirmDone();
       } else if (action.type === 'create_task') {
         onCreateTask({ title: action.title, priority: action.priority });
-        const done = 'בוצע!';
-        addMsg('jarvis', done);
-        speakThen(done, () => startListening());
+        confirmDone();
+      } else if (action.type === 'edit_task') {
+        onUpdateTask(action.taskId, { [action.field]: action.value });
+        confirmDone(`עדכנתי את "${action.taskTitle}".`);
+      } else if (action.type === 'delete_task') {
+        onDeleteTask(action.taskId);
+        confirmDone(`מחקתי את "${action.taskTitle}".`);
       } else if (action.type === 'add_habit') {
         onAddHabit({ title: action.title, emoji: action.emoji, frequency: action.frequency, targetDays: action.targetDays, color: action.color });
-        const done = 'בוצע!';
-        addMsg('jarvis', done);
-        speakThen(done, () => startListening());
+        confirmDone();
+      } else if (action.type === 'toggle_habit') {
+        onToggleHabit(action.habitId);
+        confirmDone(`סימנתי "${action.habitTitle}" כבוצע היום!`);
+      } else if (action.type === 'delete_habit') {
+        onDeleteHabit(action.habitId);
+        confirmDone(`מחקתי את ההרגל "${action.habitTitle}".`);
       } else if (action.type === 'create_goal') {
         onCreateGoal(action.title, action.domainId || 'growth', action.description);
-        const done = 'בוצע!';
-        addMsg('jarvis', done);
-        speakThen(done, () => startListening());
+        confirmDone();
+      } else if (action.type === 'delete_goal') {
+        onDeleteGoal(action.goalId);
+        confirmDone(`מחקתי את היעד "${action.goalTitle}".`);
+      } else if (action.type === 'navigate') {
+        onNavigate(action.tab);
+        onClose();
+      } else if (action.type === 'add_reflection') {
+        const today = new Date().toISOString().slice(0, 10);
+        onAddReflection({
+          date: today,
+          gratitude: action.gratitude,
+          learning: action.learning,
+          tomorrowFocus: action.tomorrowFocus,
+          mood: action.mood,
+        });
+        confirmDone('שמרתי את הרפלקציה היומית שלך!');
       } else if (action.type === 'start_focus') {
         const mins = focusMinutes;
         const msg = `מתחיל ${mins} דקות ריכוז. בהצלחה!`;
@@ -206,11 +247,11 @@ export default function JarvisScreen({
         speakThen(msg, () => startFocusTimer(mins, action.taskTitle || ''));
       }
     } catch {
-      const done = 'בוצע!';
-      addMsg('jarvis', done);
-      speakThen(done, () => startListening());
+      confirmDone();
     }
-  }, [pendingAction, focusMinutes, onMarkTaskDone, onCreateTask, onAddHabit, onCreateGoal, addMsg, speakThen, startListening, startFocusTimer]);
+  }, [pendingAction, focusMinutes, onMarkTaskDone, onCreateTask, onUpdateTask, onDeleteTask,
+      onAddHabit, onToggleHabit, onDeleteHabit, onCreateGoal, onDeleteGoal, onAddReflection,
+      onNavigate, onClose, confirmDone, addMsg, speakThen, startFocusTimer]);
 
   const handleCancel = useCallback(() => {
     setPendingAction(null);
@@ -275,11 +316,18 @@ export default function JarvisScreen({
     : 'rgba(255,255,255,0.1)';
 
   const actionLabel = !pendingAction ? '' :
-    pendingAction.type === 'mark_done'    ? `✓ ${pendingAction.taskTitle}` :
-    pendingAction.type === 'create_task'  ? `+ משימה: ${pendingAction.title}` :
-    pendingAction.type === 'add_habit'    ? `${pendingAction.emoji} הרגל: ${pendingAction.title}` :
-    pendingAction.type === 'create_goal'  ? `🎯 יעד: ${pendingAction.title}` :
-    pendingAction.type === 'start_focus'  ? `⏱ טיימר ריכוז` : '';
+    pendingAction.type === 'mark_done'      ? `✓ ${pendingAction.taskTitle}` :
+    pendingAction.type === 'create_task'    ? `+ משימה: ${pendingAction.title}` :
+    pendingAction.type === 'edit_task'      ? `✏️ ${pendingAction.taskTitle}` :
+    pendingAction.type === 'delete_task'    ? `🗑 מחק: ${pendingAction.taskTitle}` :
+    pendingAction.type === 'add_habit'      ? `${pendingAction.emoji} הרגל: ${pendingAction.title}` :
+    pendingAction.type === 'toggle_habit'   ? `✓ הרגל: ${pendingAction.habitTitle}` :
+    pendingAction.type === 'delete_habit'   ? `🗑 הרגל: ${pendingAction.habitTitle}` :
+    pendingAction.type === 'create_goal'    ? `🎯 יעד: ${pendingAction.title}` :
+    pendingAction.type === 'delete_goal'    ? `🗑 יעד: ${pendingAction.goalTitle}` :
+    pendingAction.type === 'navigate'       ? `🧭 נווט: ${pendingAction.tab}` :
+    pendingAction.type === 'add_reflection' ? `📔 רפלקציה יומית` :
+    pendingAction.type === 'start_focus'    ? `⏱ טיימר ריכוז` : '';
 
   const isFocusAction = pendingAction?.type === 'start_focus';
 

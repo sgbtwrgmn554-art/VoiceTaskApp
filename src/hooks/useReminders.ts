@@ -6,39 +6,66 @@ interface UseRemindersOptions {
   onUpdateTask: (id: string, lastNotified: string) => void;
 }
 
+function timeToMin(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
 export function useReminders({ tasks, onUpdateTask }: UseRemindersOptions) {
   const checkReminders = useCallback(() => {
     const now = new Date();
     const nowStr = now.toISOString();
     const todayStr = now.toISOString().slice(0, 10);
+    const currentMin = now.getHours() * 60 + now.getMinutes();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     tasks.forEach(task => {
-      if (!task.reminder) return;
-      const { date, time, recurrence, lastNotified } = task.reminder;
+      if (!task.reminder || task.status === 'done') return;
+      const { date, time, recurrence, lastNotified, windowEnd, repeatEvery } = task.reminder;
 
-      // Check if already notified this minute
-      if (lastNotified) {
-        const lastDate = new Date(lastNotified);
-        const diff = now.getTime() - lastDate.getTime();
-        if (diff < 60000) return; // Less than 1 minute ago
-      }
-
-      let shouldNotify = false;
-
+      // Determine if it's the right day based on recurrence
+      let isRightDay = false;
       if (recurrence === 'none') {
-        shouldNotify = date === todayStr && time === timeStr;
+        isRightDay = date === todayStr;
       } else if (recurrence === 'daily') {
-        shouldNotify = time === timeStr;
+        isRightDay = true;
       } else if (recurrence === 'weekly') {
         const targetDay = new Date(`${date}T${time}`).getDay();
-        shouldNotify = now.getDay() === targetDay && time === timeStr;
+        isRightDay = now.getDay() === targetDay;
       } else if (recurrence === 'monthly') {
-        const targetDayOfMonth = new Date(date).getDate();
-        shouldNotify = now.getDate() === targetDayOfMonth && time === timeStr;
+        isRightDay = now.getDate() === new Date(date).getDate();
       }
 
-      if (shouldNotify) {
+      if (!isRightDay) return;
+
+      // Window reminder mode
+      if (windowEnd && repeatEvery) {
+        // Throttle: don't fire if notified in the last minute
+        if (lastNotified && now.getTime() - new Date(lastNotified).getTime() < 60000) return;
+
+        const startMin = timeToMin(time);
+        const endMin = timeToMin(windowEnd);
+
+        // Outside window
+        if (currentMin < startMin || currentMin > endMin) return;
+
+        // Check if current minute lands on a repeat slot
+        const slotsPassed = Math.floor((currentMin - startMin) / repeatEvery);
+        const slotTime = startMin + slotsPassed * repeatEvery;
+        if (currentMin === slotTime) {
+          showNotification(task);
+          onUpdateTask(task.id, nowStr);
+        }
+        return;
+      }
+
+      // Single-time reminder mode
+      if (lastNotified) {
+        const diff = now.getTime() - new Date(lastNotified).getTime();
+        if (diff < 60000) return;
+      }
+
+      if (time === timeStr) {
         showNotification(task);
         onUpdateTask(task.id, nowStr);
       }
@@ -46,12 +73,9 @@ export function useReminders({ tasks, onUpdateTask }: UseRemindersOptions) {
   }, [tasks, onUpdateTask]);
 
   useEffect(() => {
-    // Request permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-
-    // Check immediately and then every minute
     checkReminders();
     const interval = setInterval(checkReminders, 60000);
     return () => clearInterval(interval);
@@ -62,8 +86,13 @@ function showNotification(task: Task) {
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
 
+  const { windowEnd, repeatEvery } = task.reminder!;
+  const body = windowEnd && repeatEvery
+    ? `חלון זמן עד ${windowEnd} | תזכורת כל ${repeatEvery} דקות`
+    : task.description || 'יש לך משימה לבצע!';
+
   new Notification(`תזכורת: ${task.title}`, {
-    body: task.description || 'יש לך משימה לבצע!',
+    body,
     icon: '/vite.svg',
     tag: task.id,
   });
