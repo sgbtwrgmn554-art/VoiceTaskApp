@@ -212,6 +212,10 @@ export default function App() {
           aiStyle={settings.aiStyle}
           accentColor={accentColor}
           onClose={() => setShowJarvis(false)}
+          onMarkTaskDone={markTaskDone}
+          onCreateTask={(input) => createTask({ title: input.title, priority: (input.priority as any) || 'medium' })}
+          onAddHabit={addHabit}
+          onCreateGoal={createGoal}
         />
       )}
 
