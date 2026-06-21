@@ -48,6 +48,8 @@ export default function App() {
     addDomain,
     updateDomain,
     removeDomain,
+    addShortcut,
+    removeShortcut,
   } = useSettings();
 
   const handleAuth = async (email: string, _password: string, _isRegister: boolean) => {
@@ -234,6 +236,8 @@ export default function App() {
               onUpdateDomain={updateDomain}
               onRemoveDomain={removeDomain}
               onThemeChange={(t) => updateSettings({ theme: t })}
+              onAddShortcut={addShortcut}
+              onRemoveShortcut={removeShortcut}
               onLogout={handleLogout}
               onOpenGuide={() => {
                 localStorage.removeItem('vt_onboarding_done');
@@ -256,6 +260,7 @@ export default function App() {
           aiStyle={settings.aiStyle}
           jarvisMode={settings.jarvisMode}
           appearanceLevel={settings.appearanceLevel}
+          voiceShortcuts={settings.voiceShortcuts}
           accentColor={accentColor}
           onClose={() => setShowJarvis(false)}
           onMarkTaskDone={markTaskDone}

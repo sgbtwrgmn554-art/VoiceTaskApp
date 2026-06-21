@@ -133,6 +133,8 @@ export interface AppSettings {
   // Morning check-in
   morningCheckInEnabled: boolean;
   morningCheckInTime: string;
+  // Voice shortcuts
+  voiceShortcuts: VoiceShortcut[];
 }
 
 export interface Milestone {
@@ -170,6 +172,15 @@ export interface Habit {
 export interface HabitLog {
   habitId: string;
   date: string; // YYYY-MM-DD
+}
+
+// ── Voice Shortcuts ──────────────────────────────────────────────────────────
+
+export interface VoiceShortcut {
+  id: string;
+  trigger: string;
+  description: string;
+  prompt: string;
 }
 
 // ── Reflection ───────────────────────────────────────────────────────────────

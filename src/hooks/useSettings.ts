@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { AppSettings, LifeDomain } from '../types';
+import { AppSettings, LifeDomain, VoiceShortcut } from '../types';
 import { loadSettings, saveSettings } from '../utils/storage';
 
 export const DEFAULT_DOMAINS: LifeDomain[] = [
@@ -12,6 +12,13 @@ export const DEFAULT_DOMAINS: LifeDomain[] = [
   { id: 'family',        label: 'משפחה',    emoji: '👨‍👩‍👧', color: '#f97316' },
   { id: 'social',        label: 'חברתי',    emoji: '👥', color: '#06b6d4' },
   { id: 'hobbies',       label: 'תחביבים',  emoji: '🎨', color: '#84cc16' },
+];
+
+export const DEFAULT_SHORTCUTS: VoiceShortcut[] = [
+  { id: 'sc-list',   trigger: 'רשימה',      description: 'קרא משימות פתוחות', prompt: 'קרא לי את כל המשימות הפתוחות שלי לפי עדיפות' },
+  { id: 'sc-today',  trigger: 'מה יש היום', description: 'סיכום יום',          prompt: 'מה יש לי לעשות היום? תסכם משימות והרגלים שצריך לעשות' },
+  { id: 'sc-focus',  trigger: 'ריכוז',      description: 'התחל טיימר ריכוז',   prompt: 'התחל לי טיימר ריכוז של 25 דקות' },
+  { id: 'sc-habits', trigger: 'הרגלים',     description: 'מצב הרגלים היום',    prompt: 'אילו הרגלים ביצעתי היום ואילו עוד לא ביצעתי?' },
 ];
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -32,13 +39,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'green',
   morningCheckInEnabled: false,
   morningCheckInTime: '08:00',
+  voiceShortcuts: DEFAULT_SHORTCUTS,
 };
 
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = loadSettings();
     if (!saved) return DEFAULT_SETTINGS;
-    // Merge to pick up any new default keys added in updates
     return { ...DEFAULT_SETTINGS, ...saved };
   });
 
@@ -123,6 +130,32 @@ export function useSettings() {
     });
   }, []);
 
+  // ── Shortcut management ───────────────────────────────────────────────────
+
+  const addShortcut = useCallback((sc: Omit<VoiceShortcut, 'id'>) => {
+    setSettings(prev => {
+      const next = { ...prev, voiceShortcuts: [...prev.voiceShortcuts, { ...sc, id: uuidv4() }] };
+      saveSettings(next);
+      return next;
+    });
+  }, []);
+
+  const removeShortcut = useCallback((id: string) => {
+    setSettings(prev => {
+      const next = { ...prev, voiceShortcuts: prev.voiceShortcuts.filter(s => s.id !== id) };
+      saveSettings(next);
+      return next;
+    });
+  }, []);
+
+  const updateShortcut = useCallback((id: string, patch: Partial<Omit<VoiceShortcut, 'id'>>) => {
+    setSettings(prev => {
+      const next = { ...prev, voiceShortcuts: prev.voiceShortcuts.map(s => s.id === id ? { ...s, ...patch } : s) };
+      saveSettings(next);
+      return next;
+    });
+  }, []);
+
   return {
     settings,
     updateSettings,
@@ -132,5 +165,8 @@ export function useSettings() {
     addDomain,
     updateDomain,
     removeDomain,
+    addShortcut,
+    removeShortcut,
+    updateShortcut,
   };
 }

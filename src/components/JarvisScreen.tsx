@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Task, Goal, Habit, HabitLog, ReflectionEntry, AppTab } from '../types';
+import { Task, Goal, Habit, HabitLog, ReflectionEntry, AppTab, VoiceShortcut } from '../types';
 import { useSpeech } from '../hooks/useSpeech';
 
 type JarvisState = 'idle' | 'loading' | 'speaking' | 'listening' | 'thinking' | 'confirming' | 'focus' | 'weekly';
@@ -34,6 +34,7 @@ interface Props {
   aiStyle?: string;
   jarvisMode?: string;
   appearanceLevel?: string;
+  voiceShortcuts?: VoiceShortcut[];
   accentColor: string;
   onClose: () => void;
   onMarkTaskDone: (id: string) => void;
@@ -62,7 +63,8 @@ function fmtTime(sec: number): string {
 
 export default function JarvisScreen({
   tasks, goals, habits, habitLogs = [], reflections = [],
-  aiLanguage = 'hebrew', jarvisMode = 'coach', appearanceLevel = 'balanced', accentColor, onClose,
+  aiLanguage = 'hebrew', jarvisMode = 'coach', appearanceLevel = 'balanced',
+  voiceShortcuts = [], accentColor, onClose,
   onMarkTaskDone, onCreateTask, onUpdateTask, onDeleteTask,
   onAddHabit, onToggleHabit, onDeleteHabit,
   onCreateGoal, onDeleteGoal, onAddReflection, onNavigate,
@@ -74,6 +76,7 @@ export default function JarvisScreen({
   const [focusData, setFocusData]         = useState<FocusData | null>(null);
   const [focusMinutes, setFocusMinutes]   = useState(25);
   const [pendingImage, setPendingImage]   = useState<{ base64: string; mediaType: string } | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const { speak, stop, isSupported: ttsSupported } = useSpeech();
   const recognitionRef = useRef<any>(null);
   const scrollRef      = useRef<HTMLDivElement>(null);
@@ -145,7 +148,15 @@ export default function JarvisScreen({
     }
   }, [addMsg, tasks, habits, goals, habitLogs, aiLanguage, jarvisMode, appearanceLevel, speakThen, startListening]);
 
-  useEffect(() => { onResultRef.current = sendQuestion; }, [sendQuestion]);
+  const handleVoiceResult = useCallback((text: string) => {
+    const lower = text.trim().toLowerCase();
+    const matched = voiceShortcuts.find(s =>
+      lower === s.trigger.toLowerCase() || lower.startsWith(s.trigger.toLowerCase())
+    );
+    sendQuestion(matched ? matched.prompt : text);
+  }, [voiceShortcuts, sendQuestion]);
+
+  useEffect(() => { onResultRef.current = handleVoiceResult; }, [handleVoiceResult]);
 
   const speakAndListen = useCallback((text: string) => {
     addMsg('jarvis', text);
@@ -377,14 +388,24 @@ export default function JarvisScreen({
           <p className="text-sm font-bold tracking-widest text-white" style={{ letterSpacing: '0.2em' }}>J.A.R.V.I.S</p>
           <p className="text-[10px] text-gray-600 tracking-wider mt-0.5">עוזר אישי</p>
         </div>
-        <button
-          onClick={() => { if (started && state === 'idle') fetchWeeklyReview(); else if (!started) { setStarted(true); fetchWeeklyReview(); } }}
-          title="סיכום שבועי"
-          className="w-9 h-9 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 transition-opacity text-base"
-          style={{ background: 'rgba(255,255,255,0.07)' }}
-        >
-          📋
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setShowShortcuts(s => !s)}
+            title="קיצורי דרך"
+            className="w-9 h-9 flex items-center justify-center rounded-full transition-opacity text-base"
+            style={{ background: showShortcuts ? accentColor + '33' : 'rgba(255,255,255,0.07)', opacity: showShortcuts ? 1 : 0.6 }}
+          >
+            ⚡
+          </button>
+          <button
+            onClick={() => { if (started && state === 'idle') fetchWeeklyReview(); else if (!started) { setStarted(true); fetchWeeklyReview(); } }}
+            title="סיכום שבועי"
+            className="w-9 h-9 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 transition-opacity text-base"
+            style={{ background: 'rgba(255,255,255,0.07)' }}
+          >
+            📋
+          </button>
+        </div>
       </div>
 
       {/* Focus Timer UI */}
@@ -460,13 +481,50 @@ export default function JarvisScreen({
           {/* Status */}
           <p className="text-center text-xs text-gray-500 tracking-wider mb-4 flex-shrink-0">{statusLabel[state]}</p>
 
+          {/* Shortcuts panel */}
+          {showShortcuts && (
+            <div className="flex-shrink-0 mx-4 mb-2 rounded-2xl overflow-hidden fade-up" style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                <p className="text-xs font-bold text-gray-300 tracking-widest">⚡ קיצורי דרך קוליים</p>
+                <button onClick={() => setShowShortcuts(false)} className="text-gray-500 hover:text-white transition-colors text-xl leading-none">×</button>
+              </div>
+              <div className="overflow-y-auto max-h-52 p-3 space-y-1.5">
+                {voiceShortcuts.length === 0 ? (
+                  <p className="text-center text-xs text-gray-600 py-3">אין קיצורים — הוסף בהגדרות ← ⚡ קיצורי דרך</p>
+                ) : voiceShortcuts.map(sc => (
+                  <div key={sc.id} className="flex items-start gap-3 px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: accentColor + '22', color: accentColor }}>
+                      {sc.trigger}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-200 font-medium">{sc.description}</p>
+                      <p className="text-[10px] text-gray-600 truncate mt-0.5">{sc.prompt}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 pb-2">
             {!started && messages.length === 0 && (
-              <div className="text-center mt-8 fade-up">
+              <div className="text-center mt-6 fade-up">
                 <p className="text-gray-600 text-sm">לחץ "הפעל" כדי לקבל סיכום יומי</p>
                 <p className="text-gray-700 text-xs mt-1">ג'ארוויס יקרא לך מה יש לך ויחכה לשאלות</p>
-                <p className="text-gray-700 text-xs mt-1">לחץ 📋 לסיכום שבועי</p>
+                <p className="text-gray-700 text-xs mt-1">לחץ 📋 לסיכום שבועי • לחץ ⚡ לקיצורים</p>
+                {voiceShortcuts.length > 0 && (
+                  <div className="mt-4 mx-2 space-y-1">
+                    {voiceShortcuts.map(sc => (
+                      <div key={sc.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: accentColor + '18', color: accentColor }}>
+                          {sc.trigger}
+                        </span>
+                        <span className="text-[10px] text-gray-600">{sc.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {messages.map((m, i) => (
