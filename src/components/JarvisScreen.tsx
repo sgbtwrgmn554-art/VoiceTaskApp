@@ -19,7 +19,8 @@ type JarvisAction =
   | { type: 'navigate'; tab: AppTab }
   | { type: 'add_reflection'; gratitude: string; learning: string; tomorrowFocus: string; mood: 1|2|3|4|5 }
   | { type: 'start_focus'; minutes: number; taskTitle?: string }
-  | { type: 'weekly_review' };
+  | { type: 'weekly_review' }
+  | { type: 'suggest_app'; appName: string; url: string; reason: string };
 
 interface FocusData { totalSec: number; leftSec: number; taskTitle: string; }
 
@@ -205,7 +206,7 @@ export default function JarvisScreen({
         confirmDone();
       } else if (action.type === 'create_task') {
         onCreateTask({ title: action.title, priority: action.priority });
-        confirmDone();
+        confirmDone('נוצר! רוצה שאוסיף עוד דברים קשורים לנושא?');
       } else if (action.type === 'edit_task') {
         onUpdateTask(action.taskId, { [action.field]: action.value });
         confirmDone(`עדכנתי את "${action.taskTitle}".`);
@@ -214,7 +215,7 @@ export default function JarvisScreen({
         confirmDone(`מחקתי את "${action.taskTitle}".`);
       } else if (action.type === 'add_habit') {
         onAddHabit({ title: action.title, emoji: action.emoji, frequency: action.frequency, targetDays: action.targetDays, color: action.color });
-        confirmDone();
+        confirmDone('נוסף! רוצה שאציע הרגלים נוספים קשורים?');
       } else if (action.type === 'toggle_habit') {
         onToggleHabit(action.habitId);
         confirmDone(`סימנתי "${action.habitTitle}" כבוצע היום!`);
@@ -245,6 +246,9 @@ export default function JarvisScreen({
         const msg = `מתחיל ${mins} דקות ריכוז. בהצלחה!`;
         addMsg('jarvis', msg);
         speakThen(msg, () => startFocusTimer(mins, action.taskTitle || ''));
+      } else if (action.type === 'suggest_app') {
+        window.open(action.url, '_blank', 'noopener noreferrer');
+        confirmDone(`פתחתי את ${action.appName}. בהצלחה!`);
       }
     } catch {
       confirmDone();
@@ -327,7 +331,8 @@ export default function JarvisScreen({
     pendingAction.type === 'delete_goal'    ? `🗑 יעד: ${pendingAction.goalTitle}` :
     pendingAction.type === 'navigate'       ? `🧭 נווט: ${pendingAction.tab}` :
     pendingAction.type === 'add_reflection' ? `📔 רפלקציה יומית` :
-    pendingAction.type === 'start_focus'    ? `⏱ טיימר ריכוז` : '';
+    pendingAction.type === 'start_focus'    ? `⏱ טיימר ריכוז` :
+    pendingAction.type === 'suggest_app'    ? `📱 ${pendingAction.appName}` : '';
 
   const isFocusAction = pendingAction?.type === 'start_focus';
 

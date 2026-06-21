@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Goal, Habit } from '../types';
 import { LinkBadge } from './AppLinkInput';
+import AppLinkInput from './AppLinkInput';
 
 interface Props {
   tasks: Task[];
@@ -17,6 +18,7 @@ interface Props {
 
 export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage = 'hebrew', onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [visible, setVisible] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -202,6 +204,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
             <TaskRow key={task.id} task={task} index={idx}
               onDone={() => onMarkDone(task.id)}
               onDelete={() => { onDeleteTask(task.id); setMenuOpen(null); }}
+              onEdit={() => { setEditingTask(task); setMenuOpen(null); }}
               menuOpen={menuOpen === task.id}
               onMenuToggle={() => setMenuOpen(menuOpen === task.id ? null : task.id)}
               accentColor={accentColor} />
@@ -219,6 +222,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
               <TaskRow key={task.id} task={task} index={idx} done
                 onDone={() => onMarkDone(task.id)}
                 onDelete={() => { onDeleteTask(task.id); setMenuOpen(null); }}
+                onEdit={() => { setEditingTask(task); setMenuOpen(null); }}
                 menuOpen={menuOpen === task.id}
                 onMenuToggle={() => setMenuOpen(menuOpen === task.id ? null : task.id)}
                 accentColor={accentColor} />
@@ -227,6 +231,15 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
         )}
         <div className="h-6" />
       </div>
+
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          accentColor={accentColor}
+          onSave={(data) => { onUpdateTask(editingTask.id, data); setEditingTask(null); }}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
     </div>
   );
 }
@@ -292,9 +305,9 @@ function MatrixCard({ task, index, onDone, onDelete, accentColor }: {
   );
 }
 
-function TaskRow({ task, index, done, onDone, onDelete, menuOpen, onMenuToggle, accentColor }: {
+function TaskRow({ task, index, done, onDone, onDelete, onEdit, menuOpen, onMenuToggle, accentColor }: {
   task: Task; index: number; done?: boolean;
-  onDone: () => void; onDelete: () => void;
+  onDone: () => void; onDelete: () => void; onEdit: () => void;
   menuOpen: boolean; onMenuToggle: () => void;
   accentColor: string;
 }) {
@@ -313,6 +326,10 @@ function TaskRow({ task, index, done, onDone, onDelete, menuOpen, onMenuToggle, 
       {menuOpen && (
         <div className="absolute right-8 top-1 z-20 rounded-2xl shadow-2xl overflow-hidden slide-in"
              style={{ background: '#1e1e1e', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <button onClick={onEdit}
+            className="block w-full text-right px-5 py-3 text-sm text-white hover:bg-white/5 transition-colors border-b border-white/5">
+            ✏️ ערוך משימה
+          </button>
           <button onClick={onDelete}
             className="block w-full text-right px-5 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors">
             🗑 מחק משימה
@@ -363,6 +380,72 @@ function TaskRow({ task, index, done, onDone, onDelete, menuOpen, onMenuToggle, 
           </svg>
         )}
       </button>
+    </div>
+  );
+}
+
+const PRIORITY_LABELS: Record<string, string> = { low: 'נמוכה', medium: 'בינונית', high: 'גבוהה' };
+
+function EditTaskModal({ task, accentColor, onSave, onClose }: {
+  task: Task;
+  accentColor: string;
+  onSave: (data: Partial<Task>) => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle]       = useState(task.title);
+  const [priority, setPriority] = useState(task.priority || 'medium');
+  const [category, setCategory] = useState(task.category || '');
+  const [url, setUrl]           = useState(task.url || '');
+
+  const submit = () => {
+    if (!title.trim()) return;
+    onSave({ title: title.trim(), priority: priority as Task['priority'], category, url: url || undefined });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
+      <div className="w-full rounded-t-3xl p-5 pb-8 space-y-4"
+        style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.08)' }}
+        onClick={e => e.stopPropagation()}>
+        <div className="w-8 h-1 rounded-full bg-gray-700 mx-auto mb-2" />
+        <h2 className="text-base font-bold text-center">✏️ ערוך משימה</h2>
+
+        <input
+          value={title} onChange={e => setTitle(e.target.value)}
+          placeholder="כותרת המשימה..."
+          dir="rtl" autoFocus
+          className="w-full bg-black/30 rounded-xl px-4 py-3 text-sm outline-none border border-white/10 text-white placeholder-gray-600"
+        />
+
+        <div className="flex gap-2">
+          {(['low', 'medium', 'high'] as const).map(p => (
+            <button key={p} onClick={() => setPriority(p)}
+              className="flex-1 py-2 rounded-xl text-sm transition-all"
+              style={{
+                background: priority === p ? accentColor + '22' : 'rgba(255,255,255,0.05)',
+                color: priority === p ? accentColor : '#9ca3af',
+                border: priority === p ? `1px solid ${accentColor}40` : 'none',
+              }}>
+              {PRIORITY_LABELS[p]}
+            </button>
+          ))}
+        </div>
+
+        <input
+          value={category} onChange={e => setCategory(e.target.value)}
+          placeholder="קטגוריה (אופציונלי)..."
+          dir="rtl"
+          className="w-full bg-black/30 rounded-xl px-4 py-2.5 text-sm outline-none border border-white/10 text-white placeholder-gray-600"
+        />
+
+        <AppLinkInput value={url} onChange={setUrl} accentColor={accentColor} />
+
+        <button onClick={submit}
+          className="w-full py-3 rounded-2xl text-sm font-bold transition-all active:scale-[0.98]"
+          style={{ background: accentColor, color: '#000' }}>
+          שמור שינויים
+        </button>
+      </div>
     </div>
   );
 }

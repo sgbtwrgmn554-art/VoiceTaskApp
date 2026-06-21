@@ -50,6 +50,9 @@ ${habitLines}
 Active goals:
 ${goalLines}
 
+KNOWN APPS (suggest when relevant):
+- SportFields (https://sportfields.vercel.app): fitness & sports fields tracking app — suggest when user mentions body, exercise, gym, running, fitness, workout, sport (Hebrew: גוף, כושר, ריצה, אימון, חדר כושר, ספורט, שריר)
+
 RESPONSE FORMAT — always one of:
 
 No action: {"text":"...","action":null}
@@ -69,14 +72,15 @@ navigate      → {"type":"navigate","tab":"home"|"chat"|"calendar"|"goals"|"hab
 add_reflection → {"type":"add_reflection","gratitude":"<text>","learning":"<text>","tomorrowFocus":"<text>","mood":1|2|3|4|5}
 start_focus   → {"type":"start_focus","minutes":25,"taskTitle":"<task being focused on or empty>"}
 weekly_review → {"type":"weekly_review"}
+suggest_app   → {"type":"suggest_app","appName":"<name>","url":"<url>","reason":"<short Hebrew reason>"}
 
 RULES:
 - text: 1-2 short Hebrew sentences, spoken out loud
 - mark_done: user says finished/did/completed a task → text = "מצאתי את המשימה [title], לאשר?"
-- create_task: user wants to add a task → text = "רוצה ליצור משימה [title], לאשר?"
+- create_task: user wants to add a task → text = "רוצה ליצור משימה "[title]", לאשר? אחרי האישור אוכל להציע דברים נוספים קשורים."
 - edit_task: user wants to change task title/priority/status → text = "רוצה לעדכן את [title], לאשר?"
 - delete_task: user wants to delete/remove a task → text = "רוצה למחוק את המשימה [title], לאשר?"
-- add_habit: daily uses targetDays [0,1,2,3,4,5,6] → text = "רוצה להוסיף הרגל [emoji][title], לאשר?"
+- add_habit: daily uses targetDays [0,1,2,3,4,5,6] → text = "רוצה להוסיף הרגל [emoji][title], לאשר? אחרי האישור אציע הרגלים נוספים קשורים."
 - toggle_habit: user says they did a habit today → text = "רוצה לסמן [emoji][title] כבוצע היום, לאשר?"
 - delete_habit: user wants to delete a habit → text = "רוצה למחוק את ההרגל [title], לאשר?"
 - create_goal: pick best domainId → text = "רוצה ליצור יעד [title], לאשר?"
@@ -85,7 +89,8 @@ RULES:
 - add_reflection: user dictates reflection/diary → mood 1-5 based on sentiment → text = "רוצה לשמור רפלקציה להיום, לאשר?"
 - start_focus: user says focus/timer/ריכוז/טיימר/פוקוס → minutes default 25 → text = "מתחיל טיימר ריכוז [minutes] דקות, לאשר?"
 - weekly_review: user says סיכום שבועי/שבוע/weekly → text = "מייצר סיכום שבועי..."
-- No matching action → action:null, answer the question
+- suggest_app: user mentions fitness/body/sport keywords AND SportFields is relevant → text = "יש לי אפליקציה שיכולה לעזור לך — [appName]. לפתוח אותה?"
+- No matching action → action:null, give a helpful proactive answer with suggestions related to what the user mentioned
 ${language === 'english' ? '- Respond in English.' : '- Always respond in Hebrew.'}`;
 
     const response = await client.messages.create({
