@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Task } from '../types';
+import { Task, Goal, Habit } from '../types';
 
 interface Props {
   tasks: Task[];
+  goals?: Goal[];
+  habits?: Habit[];
+  aiLanguage?: string;
   onNewRecording: () => void;
   onUpdateTask: (id: string, data: Partial<Task>) => void;
   onDeleteTask: (id: string) => void;
@@ -10,13 +13,33 @@ interface Props {
   accentColor: string;
 }
 
-export default function HomeScreen({ tasks, onNewRecording, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
+export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage = 'hebrew', onNewRecording, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'matrix'>('list');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   useEffect(() => { setTimeout(() => setVisible(true), 30); }, []);
+
+  const fetchSuggestions = async () => {
+    if (showSuggestions) { setShowSuggestions(false); return; }
+    setShowSuggestions(true);
+    if (suggestions.length > 0) return;
+    setLoadingSuggestions(true);
+    try {
+      const res = await fetch('/api/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goals, tasks, habits, language: aiLanguage }),
+      });
+      const data = await res.json();
+      setSuggestions(data.suggestions ?? []);
+    } catch { setSuggestions(['לא הצלחתי לקבל הצעות כרגע']); }
+    finally { setLoadingSuggestions(false); }
+  };
 
   const filtered = searchQuery.trim()
     ? tasks.filter(t => t.title.includes(searchQuery) || t.description?.includes(searchQuery))
@@ -83,8 +106,7 @@ export default function HomeScreen({ tasks, onNewRecording, onUpdateTask, onDele
         <div className="flex items-center justify-between mb-3 gap-2">
           {/* Right group */}
           <div className="flex items-center gap-1.5">
-            <IconBtn label="🧠" active={false} />
-            <IconBtn label="🤝" active={false} />
+            <IconBtn label="🧠" active={showSuggestions} accentColor={accentColor} onClick={fetchSuggestions} />
           </div>
 
           {/* Search bar (expands inline) */}
@@ -135,6 +157,21 @@ export default function HomeScreen({ tasks, onNewRecording, onUpdateTask, onDele
             </IconBtn>
           </div>
         </div>
+
+        {/* AI Suggestions panel */}
+        {showSuggestions && (
+          <div className="mb-3 rounded-2xl p-3.5 fade-up"
+            style={{ background: accentColor + '10', border: `1px solid ${accentColor}30` }}>
+            <p className="text-xs font-semibold mb-2" style={{ color: accentColor }}>🧠 המלצות ליום הזה</p>
+            {loadingSuggestions ? (
+              <p className="text-xs text-gray-500 text-center py-2">טוען...</p>
+            ) : suggestions.map((s, i) => (
+              <p key={i} className="text-xs text-gray-300 py-1 border-b last:border-0" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                • {s}
+              </p>
+            ))}
+          </div>
+        )}
 
         {filtered.length === 0 && (
           <div className="text-center mt-14 fade-up">

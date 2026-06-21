@@ -2,7 +2,7 @@ export type TaskStatus = 'todo' | 'in-progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskCategory = string;
 export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'every3months' | 'halfyear' | 'yearly';
-export type AppTab = 'home' | 'chat' | 'calendar' | 'goals' | 'profile';
+export type AppTab = 'home' | 'chat' | 'calendar' | 'goals' | 'profile' | 'habits';
 export type ThemeColor = 'orange' | 'green' | 'purple' | 'blue' | 'pink' | 'teal' | 'red' | 'yellow';
 
 export interface Reminder {
@@ -139,6 +139,35 @@ export interface Goal {
   deadline?: string;
   milestones: Milestone[];
   status: 'active' | 'completed' | 'paused';
+  createdAt: string;
+}
+
+// ── Habits ───────────────────────────────────────────────────────────────────
+
+export interface Habit {
+  id: string;
+  title: string;
+  emoji: string;
+  frequency: 'daily' | 'weekly';
+  targetDays: number[]; // 0=Sun … 6=Sat (for weekly)
+  color: string;
+  createdAt: string;
+}
+
+export interface HabitLog {
+  habitId: string;
+  date: string; // YYYY-MM-DD
+}
+
+// ── Reflection ───────────────────────────────────────────────────────────────
+
+export interface ReflectionEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  gratitude: string;
+  learning: string;
+  tomorrowFocus: string;
+  mood: 1 | 2 | 3 | 4 | 5;
   createdAt: string;
 }
 
