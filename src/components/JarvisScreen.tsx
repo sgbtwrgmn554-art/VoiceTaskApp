@@ -32,6 +32,8 @@ interface Props {
   reflections?: ReflectionEntry[];
   aiLanguage?: string;
   aiStyle?: string;
+  jarvisMode?: string;
+  appearanceLevel?: string;
   accentColor: string;
   onClose: () => void;
   onMarkTaskDone: (id: string) => void;
@@ -60,7 +62,7 @@ function fmtTime(sec: number): string {
 
 export default function JarvisScreen({
   tasks, goals, habits, habitLogs = [], reflections = [],
-  aiLanguage = 'hebrew', accentColor, onClose,
+  aiLanguage = 'hebrew', jarvisMode = 'coach', appearanceLevel = 'balanced', accentColor, onClose,
   onMarkTaskDone, onCreateTask, onUpdateTask, onDeleteTask,
   onAddHabit, onToggleHabit, onDeleteHabit,
   onCreateGoal, onDeleteGoal, onAddReflection, onNavigate,
@@ -71,11 +73,13 @@ export default function JarvisScreen({
   const [pendingAction, setPendingAction] = useState<JarvisAction | null>(null);
   const [focusData, setFocusData]         = useState<FocusData | null>(null);
   const [focusMinutes, setFocusMinutes]   = useState(25);
+  const [pendingImage, setPendingImage]   = useState<{ base64: string; mediaType: string } | null>(null);
   const { speak, stop, isSupported: ttsSupported } = useSpeech();
   const recognitionRef = useRef<any>(null);
   const scrollRef      = useRef<HTMLDivElement>(null);
   const onResultRef    = useRef<(text: string) => void>(() => {});
   const focusTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const photoInputRef  = useRef<HTMLInputElement>(null);
 
   const addMsg = useCallback((role: 'jarvis' | 'user', text: string) => {
     setMessages(prev => [...prev, { role, text }]);
@@ -105,15 +109,17 @@ export default function JarvisScreen({
     rec.start();
   }, [aiLanguage]);
 
-  const sendQuestion = useCallback(async (question: string) => {
+  const sendQuestion = useCallback(async (question: string, image?: { base64: string; mediaType: string }) => {
     if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
-    addMsg('user', question);
+    addMsg('user', image ? `📷 ${question || 'תנתח את התמונה'}` : question);
     setState('thinking');
     try {
+      const body: Record<string, unknown> = { question, tasks, habits, goals, habitLogs, language: aiLanguage, jarvisMode, appearanceLevel };
+      if (image) { body.imageBase64 = image.base64; body.imageMediaType = image.mediaType; }
       const res = await fetch('/api/jarvis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, tasks, habits, goals, habitLogs, language: aiLanguage }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       const text = data.text || 'מצטער, לא הצלחתי לקבל תשובה.';
@@ -137,7 +143,7 @@ export default function JarvisScreen({
       addMsg('jarvis', err);
       speakThen(err, () => startListening());
     }
-  }, [addMsg, tasks, habits, goals, aiLanguage, speakThen, startListening]);
+  }, [addMsg, tasks, habits, goals, habitLogs, aiLanguage, jarvisMode, appearanceLevel, speakThen, startListening]);
 
   useEffect(() => { onResultRef.current = sendQuestion; }, [sendQuestion]);
 
@@ -293,6 +299,22 @@ export default function JarvisScreen({
       startListening();
     }
   };
+
+  const handlePhotoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.split(',')[1];
+      const mediaType = file.type || 'image/jpeg';
+      setPendingImage({ base64, mediaType });
+      if (!started) { setStarted(true); }
+      sendQuestion('', { base64, mediaType });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, [started, sendQuestion]);
 
   useEffect(() => () => {
     stop();
@@ -538,6 +560,30 @@ export default function JarvisScreen({
                   </svg>
                   {state === 'listening' ? 'מאזין...' : state === 'confirming' ? 'ביטול' : 'שאל שאלה'}
                 </button>
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={state === 'thinking' || state === 'focus'}
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-opacity"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    opacity: (state === 'thinking' || state === 'focus') ? 0.3 : 0.7,
+                  }}
+                  title="שלח תמונה"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="3"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                </button>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                />
               </>
             )}
           </div>

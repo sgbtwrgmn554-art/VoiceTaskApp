@@ -254,6 +254,8 @@ export default function App() {
           reflections={reflections}
           aiLanguage={settings.aiLanguage}
           aiStyle={settings.aiStyle}
+          jarvisMode={settings.jarvisMode}
+          appearanceLevel={settings.appearanceLevel}
           accentColor={accentColor}
           onClose={() => setShowJarvis(false)}
           onMarkTaskDone={markTaskDone}

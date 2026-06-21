@@ -11,6 +11,19 @@ function readBody(req: any): Promise<any> {
   });
 }
 
+const JARVIS_MODE_PROMPT: Record<string, string> = {
+  drill:  'COACHING MODE: DRILL SERGEANT. You are an iron-willed commander. No excuses. No tolerance. Every skipped habit = failure. Every delayed task = weakness. Be brutally direct. Zero sympathy. Results only.',
+  coach:  'COACHING MODE: COACH. You are firm but intelligent. High standards, strong push. You understand humans have hard days but refuse to accept laziness. Believe in the person while demanding excellence.',
+  friend: 'COACHING MODE: FRIEND. You are honest and caring. You tell the truth without judgment or pressure. Supportive, balanced, and real. Never preachy.',
+  gentle: 'COACHING MODE: ENCOURAGER. You always see the positive. Celebrate every small win. Never criticize — only gently guide. Perfect for sensitive days.',
+};
+
+const APPEARANCE_PROMPT: Record<string, string> = {
+  harsh:    'APPEARANCE FEEDBACK: Be completely direct and objective. Point out exactly what needs improvement without softening. Treat the person like a professional athlete who wants the truth.',
+  balanced: 'APPEARANCE FEEDBACK: Mention what looks good AND what can be improved in a balanced way. Be constructive, not harsh.',
+  gentle:   'APPEARANCE FEEDBACK: Be encouraging and supportive. Frame improvements as possibilities, not flaws. Focus on what is already good.',
+};
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -20,7 +33,14 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = req.body ?? await readBody(req);
-    const { question, tasks = [], habits = [], goals = [], habitLogs = [], language = 'hebrew' } = body;
+    const {
+      question, tasks = [], habits = [], goals = [], habitLogs = [],
+      language = 'hebrew',
+      jarvisMode = 'coach',
+      appearanceLevel = 'balanced',
+      imageBase64,
+      imageMediaType = 'image/jpeg',
+    } = body;
 
     const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -39,6 +59,9 @@ export default async function handler(req: any, res: any) {
       .join('\n') || 'אין';
 
     const system = `You are J.A.R.V.I.S, an Iron Man-style personal voice assistant. Respond ONLY with raw valid JSON (no markdown, no \`\`\`).
+
+${JARVIS_MODE_PROMPT[jarvisMode] || JARVIS_MODE_PROMPT.coach}
+${imageBase64 ? APPEARANCE_PROMPT[appearanceLevel] || APPEARANCE_PROMPT.balanced : ''}
 
 CURRENT DATA:
 Open tasks:
@@ -75,7 +98,7 @@ weekly_review → {"type":"weekly_review"}
 suggest_app   → {"type":"suggest_app","appName":"<name>","url":"<url>","reason":"<short Hebrew reason>"}
 
 RULES:
-- text: 1-2 short Hebrew sentences, spoken out loud
+- text: 1-2 short Hebrew sentences, spoken out loud — tone matches COACHING MODE
 - mark_done: user says finished/did/completed a task → text = "מצאתי את המשימה [title], לאשר?"
 - create_task: user wants to add a task → text = "רוצה ליצור משימה "[title]", לאשר? אחרי האישור אוכל להציע דברים נוספים קשורים."
 - edit_task: user wants to change task title/priority/status → text = "רוצה לעדכן את [title], לאשר?"
@@ -90,14 +113,29 @@ RULES:
 - start_focus: user says focus/timer/ריכוז/טיימר/פוקוס → minutes default 25 → text = "מתחיל טיימר ריכוז [minutes] דקות, לאשר?"
 - weekly_review: user says סיכום שבועי/שבוע/weekly → text = "מייצר סיכום שבועי..."
 - suggest_app: user mentions fitness/body/sport keywords AND SportFields is relevant → text = "יש לי אפליקציה שיכולה לעזור לך — [appName]. לפתוח אותה?"
-- No matching action → action:null, give a helpful proactive answer with suggestions related to what the user mentioned
+- Image sent → analyze it according to APPEARANCE FEEDBACK level; action:null, give feedback in text
+- No matching action → action:null, give a helpful proactive answer matching the coaching tone
 ${language === 'english' ? '- Respond in English.' : '- Always respond in Hebrew.'}`;
 
+    // Build message content — with or without image
+    let userContent: any;
+    if (imageBase64) {
+      userContent = [
+        {
+          type: 'image',
+          source: { type: 'base64', media_type: imageMediaType, data: imageBase64 },
+        },
+        { type: 'text', text: question || 'תנתח את התמונה הזאת ותגיד לי מה לשפר.' },
+      ];
+    } else {
+      userContent = question;
+    }
+
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 400,
+      model: imageBase64 ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
+      max_tokens: imageBase64 ? 600 : 400,
       system,
-      messages: [{ role: 'user', content: question }],
+      messages: [{ role: 'user', content: userContent }],
     });
 
     const raw = (response.content[0] as Anthropic.TextBlock).text.trim();

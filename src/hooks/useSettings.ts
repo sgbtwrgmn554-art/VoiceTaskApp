@@ -27,6 +27,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   aiStyle: 'detailed',
   autoClassify: true,
   chatHistoryLimit: 100,
+  jarvisMode: 'coach',
+  appearanceLevel: 'balanced',
   theme: 'green',
   morningCheckInEnabled: false,
   morningCheckInTime: '08:00',

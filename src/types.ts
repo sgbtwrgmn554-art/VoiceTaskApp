@@ -106,6 +106,9 @@ export interface LifeDomain {
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
+export type JarvisMode = 'drill' | 'coach' | 'friend' | 'gentle';
+export type AppearanceLevel = 'harsh' | 'balanced' | 'gentle';
+
 export interface AppSettings {
   // Tasks
   customCategories: string[];
@@ -123,6 +126,8 @@ export interface AppSettings {
   aiStyle: 'brief' | 'detailed';
   autoClassify: boolean;
   chatHistoryLimit: number;
+  jarvisMode: JarvisMode;
+  appearanceLevel: AppearanceLevel;
   // Appearance
   theme: ThemeColor;
   // Morning check-in
