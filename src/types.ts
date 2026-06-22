@@ -106,6 +106,9 @@ export interface LifeDomain {
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
+export type JarvisMode = 'drill' | 'coach' | 'friend' | 'gentle';
+export type AppearanceLevel = 'harsh' | 'balanced' | 'gentle';
+
 export interface AppSettings {
   // Tasks
   customCategories: string[];
@@ -123,11 +126,15 @@ export interface AppSettings {
   aiStyle: 'brief' | 'detailed';
   autoClassify: boolean;
   chatHistoryLimit: number;
+  jarvisMode: JarvisMode;
+  appearanceLevel: AppearanceLevel;
   // Appearance
   theme: ThemeColor;
   // Morning check-in
   morningCheckInEnabled: boolean;
   morningCheckInTime: string;
+  // Voice shortcuts
+  voiceShortcuts: VoiceShortcut[];
 }
 
 export interface Milestone {
@@ -143,9 +150,19 @@ export interface Goal {
   domainId: LifeDomainId;
   title: string;
   description: string;
+  why?: string;
   deadline?: string;
   milestones: Milestone[];
   status: 'active' | 'completed' | 'paused';
+  createdAt: string;
+}
+
+// ── Desires / Aspirations ─────────────────────────────────────────────────────
+
+export interface Desire {
+  id: string;
+  text: string;
+  emoji: string;
   createdAt: string;
 }
 
@@ -165,6 +182,15 @@ export interface Habit {
 export interface HabitLog {
   habitId: string;
   date: string; // YYYY-MM-DD
+}
+
+// ── Voice Shortcuts ──────────────────────────────────────────────────────────
+
+export interface VoiceShortcut {
+  id: string;
+  trigger: string;
+  description: string;
+  prompt: string;
 }
 
 // ── Reflection ───────────────────────────────────────────────────────────────

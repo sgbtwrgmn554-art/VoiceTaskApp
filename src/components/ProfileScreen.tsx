@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { AppSettings, LifeDomain, ThemeColor, Task, Habit, HabitLog, Goal, ReflectionEntry } from '../types';
+import { AppSettings, LifeDomain, ThemeColor, Task, Habit, HabitLog, Goal, ReflectionEntry, JarvisMode, AppearanceLevel, VoiceShortcut } from '../types';
 import { clearAllData } from '../utils/storage';
 
 interface Props {
@@ -20,6 +20,8 @@ interface Props {
   onThemeChange: (t: ThemeColor) => void;
   onLogout: () => void;
   onOpenGuide?: () => void;
+  onAddShortcut: (sc: Omit<VoiceShortcut, 'id'>) => void;
+  onRemoveShortcut: (id: string) => void;
 }
 
 const THEMES: { value: ThemeColor; label: string; color: string }[] = [
@@ -229,6 +231,7 @@ export default function ProfileScreen({
   onUpdateSettings, onAddCategory, onRemoveCategory, onRenameCategory,
   onAddDomain, onUpdateDomain, onRemoveDomain,
   onThemeChange, onLogout, onOpenGuide,
+  onAddShortcut, onRemoveShortcut,
 }: Props) {
   const [newCat, setNewCat]               = useState('');
   const [editingCat, setEditingCat]       = useState<string | null>(null);
@@ -239,6 +242,10 @@ export default function ProfileScreen({
   const [showAddDomain, setShowAddDomain] = useState(false);
   const [editingDomain, setEditingDomain] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [showAddShortcut, setShowAddShortcut] = useState(false);
+  const [newScTrigger, setNewScTrigger]   = useState('');
+  const [newScDesc, setNewScDesc]         = useState('');
+  const [newScPrompt, setNewScPrompt]     = useState('');
   const newCatRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -617,6 +624,142 @@ export default function ProfileScreen({
               onChange={v => onUpdateSettings({ chatHistoryLimit: Number(v) })}
             />
           </Row>
+        </Card>
+
+        {/* ── JARVIS PERSONALITY ── */}
+        <SectionHeader emoji="🤖" title="אישיות J.A.R.V.I.S" />
+        <Card>
+          <div className="p-4 space-y-3">
+            <p className="text-xs text-gray-500 mb-1">רמת אימון — איך JARVIS ידבר אליך</p>
+            {([
+              { value: 'drill',  icon: '🪖', name: 'סמל',     desc: 'אין תירוצים. כל דחייה = כישלון. ידחוף אותך ללא רחמים — מושלם אם אתה רוצה תוצאות בכוח.' },
+              { value: 'coach',  icon: '🏋️', name: 'מאמן',    desc: 'נוקשה אבל הגיוני. מדחיף חזק, מאמין בך, מבין שיש ימים קשים אבל לא מקבל התמוטטות.' },
+              { value: 'friend', icon: '🤝', name: 'חבר',     desc: 'ישיר ואמיתי. אומר את האמת בלי לחץ יתר, תומך ומקשיב. מאוזן ונוח.' },
+              { value: 'gentle', icon: '🌱', name: 'מעודד',   desc: 'תמיד רואה את הטוב. מחזק כל התקדמות גם הקטנה. לא שופט לעולם. מתאים לימים קשים.' },
+            ] as { value: JarvisMode; icon: string; name: string; desc: string }[]).map(opt => (
+              <button key={opt.value} onClick={() => onUpdateSettings({ jarvisMode: opt.value })}
+                className="w-full text-right p-3 rounded-2xl transition-all active:scale-[0.98]"
+                style={{
+                  background: settings.jarvisMode === opt.value ? accentColor + '18' : 'rgba(255,255,255,0.04)',
+                  border: `1.5px solid ${settings.jarvisMode === opt.value ? accentColor : 'rgba(255,255,255,0.07)'}`,
+                }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-lg">{opt.icon}</span>
+                  <span className="text-sm font-bold" style={{ color: settings.jarvisMode === opt.value ? accentColor : '#e5e7eb' }}>{opt.name}</span>
+                  {settings.jarvisMode === opt.value && <span className="text-xs ml-auto" style={{ color: accentColor }}>✓ פעיל</span>}
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">{opt.desc}</p>
+              </button>
+            ))}
+
+            <div className="h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+
+            <p className="text-xs text-gray-500 mb-1">רמת פידבק על תמונה — כמה ישיר JARVIS יהיה על המראה שלך</p>
+            <div className="flex gap-2">
+              {([
+                { value: 'harsh',    icon: '🔍', name: 'מראה',   desc: 'ישיר לחלוטין, ללא עיגול פינות' },
+                { value: 'balanced', icon: '⚖️', name: 'מאוזן',  desc: 'חוזקות + מה לשפר' },
+                { value: 'gentle',   icon: '💚', name: 'עדין',   desc: 'מעודד עם הצעות רכות' },
+              ] as { value: AppearanceLevel; icon: string; name: string; desc: string }[]).map(opt => (
+                <button key={opt.value} onClick={() => onUpdateSettings({ appearanceLevel: opt.value })}
+                  className="flex-1 p-3 rounded-2xl text-center transition-all active:scale-[0.98]"
+                  style={{
+                    background: settings.appearanceLevel === opt.value ? accentColor + '18' : 'rgba(255,255,255,0.04)',
+                    border: `1.5px solid ${settings.appearanceLevel === opt.value ? accentColor : 'rgba(255,255,255,0.07)'}`,
+                  }}>
+                  <div className="text-xl mb-1">{opt.icon}</div>
+                  <div className="text-xs font-bold mb-0.5" style={{ color: settings.appearanceLevel === opt.value ? accentColor : '#e5e7eb' }}>{opt.name}</div>
+                  <div className="text-[10px] text-gray-600 leading-tight">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* ── VOICE SHORTCUTS ── */}
+        <SectionHeader emoji="⚡" title="קיצורי דרך קוליים" />
+        <Card>
+          <div className="p-4">
+            <p className="text-xs text-gray-500 mb-3">אמור את המילה הקסומה — JARVIS יבצע אוטומטית</p>
+            <div className="space-y-2 mb-3">
+              {settings.voiceShortcuts.map(sc => (
+                <div key={sc.id} className="flex items-start gap-2 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: accentColor + '22', color: accentColor }}>
+                        "{sc.trigger}"
+                      </span>
+                      <span className="text-xs text-gray-300">{sc.description}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-600 truncate">{sc.prompt}</p>
+                  </div>
+                  <button
+                    onClick={() => onRemoveShortcut(sc.id)}
+                    className="text-gray-600 hover:text-red-400 transition-colors text-lg w-6 text-center flex-shrink-0 leading-none"
+                  >×</button>
+                </div>
+              ))}
+              {settings.voiceShortcuts.length === 0 && (
+                <p className="text-xs text-gray-600 text-center py-2">אין קיצורים עדיין</p>
+              )}
+            </div>
+
+            {showAddShortcut ? (
+              <div className="space-y-2 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                <input
+                  autoFocus
+                  value={newScTrigger}
+                  onChange={e => setNewScTrigger(e.target.value)}
+                  placeholder='מילת הפעלה (מה אתה אומר)'
+                  className="w-full text-sm text-white px-3 py-2.5 rounded-xl outline-none"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
+                />
+                <input
+                  value={newScDesc}
+                  onChange={e => setNewScDesc(e.target.value)}
+                  placeholder='תיאור קצר (מה זה עושה)'
+                  className="w-full text-sm text-white px-3 py-2.5 rounded-xl outline-none"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
+                />
+                <textarea
+                  value={newScPrompt}
+                  onChange={e => setNewScPrompt(e.target.value)}
+                  placeholder='הוראה לג׳ארוויס (מה יישלח אליו)'
+                  rows={2}
+                  className="w-full text-sm text-white px-3 py-2.5 rounded-xl outline-none resize-none"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (newScTrigger.trim() && newScPrompt.trim()) {
+                        onAddShortcut({
+                          trigger: newScTrigger.trim(),
+                          description: newScDesc.trim() || newScTrigger.trim(),
+                          prompt: newScPrompt.trim(),
+                        });
+                        setNewScTrigger(''); setNewScDesc(''); setNewScPrompt('');
+                        setShowAddShortcut(false);
+                      }
+                    }}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-black"
+                    style={{ background: accentColor }}
+                  >שמור</button>
+                  <button
+                    onClick={() => { setShowAddShortcut(false); setNewScTrigger(''); setNewScDesc(''); setNewScPrompt(''); }}
+                    className="px-4 py-2.5 rounded-xl text-sm text-gray-400"
+                    style={{ background: 'rgba(255,255,255,0.06)' }}
+                  >ביטול</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAddShortcut(true)}
+                className="w-full py-2.5 rounded-xl text-sm text-gray-400 transition-colors"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.12)' }}
+              >+ הוסף קיצור דרך</button>
+            )}
+          </div>
         </Card>
 
         {/* ── APPEARANCE ── */}
