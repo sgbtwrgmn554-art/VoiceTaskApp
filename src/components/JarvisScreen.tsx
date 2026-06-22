@@ -89,14 +89,16 @@ export default function JarvisScreen({
   onAddReflection, onNavigate,
 }: Props) {
   const [state, setState]                 = useState<JarvisState>('idle');
-  const [messages, setMessages]           = useState<Message[]>([]);
-  const [started, setStarted]             = useState(false);
+  const [messages, setMessages]           = useState<Message[]>(() => {
+    try { return JSON.parse(localStorage.getItem('jarvis_history') || '[]'); } catch { return []; }
+  });
+  const [started, setStarted]             = useState(() => !!localStorage.getItem('jarvis_started'));
   const [pendingAction, setPendingAction] = useState<JarvisAction | null>(null);
   const [focusData, setFocusData]         = useState<FocusData | null>(null);
   const [focusMinutes, setFocusMinutes]   = useState(25);
   const [pendingImage, setPendingImage]   = useState<{ base64: string; mediaType: string } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [energyLevel, setEnergyLevel]     = useState(0);   // 0 = not set, 1-5
+  const [energyLevel, setEnergyLevel]     = useState(0);
   const [textInput, setTextInput]         = useState('');
   const { speak, stop, isSupported: ttsSupported } = useSpeech();
   const recognitionRef = useRef<any>(null);
@@ -107,9 +109,24 @@ export default function JarvisScreen({
   const textInputRef   = useRef<HTMLInputElement>(null);
 
   const addMsg = useCallback((role: 'jarvis' | 'user', text: string) => {
-    setMessages(prev => [...prev, { role, text }]);
+    setMessages(prev => {
+      const next = [...prev, { role, text }];
+      const trimmed = next.slice(-40);
+      try { localStorage.setItem('jarvis_history', JSON.stringify(trimmed)); } catch {}
+      return trimmed;
+    });
     setTimeout(() => { scrollRef.current?.scrollTo({ top: 9999, behavior: 'smooth' }); }, 50);
   }, []);
+
+  const clearHistory = useCallback(() => {
+    setMessages([]);
+    localStorage.removeItem('jarvis_history');
+    localStorage.removeItem('jarvis_started');
+    setStarted(false);
+    stop();
+    try { recognitionRef.current?.stop(); } catch {}
+    setState('idle');
+  }, [stop]);
 
   const speakThen = useCallback((text: string, onEnd: () => void) => {
     setState('speaking');
@@ -330,6 +347,7 @@ export default function JarvisScreen({
 
   const fetchBriefing = useCallback(async () => {
     setState('loading');
+    localStorage.setItem('jarvis_started', '1');
     try {
       const res = await fetch('/api/briefing', {
         method: 'POST',
@@ -342,6 +360,21 @@ export default function JarvisScreen({
       speakAndListen('שלום! אני ג\'ארוויס. אפשר לשאול אותי שאלות.');
     }
   }, [tasks, goals, habits, aiLanguage, energyLevel, desires, speakAndListen]);
+
+  const fetchMonthlyReview = useCallback(async () => {
+    setState('weekly');
+    try {
+      const res = await fetch('/api/monthly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks, habits, habitLogs, goals, reflections, desires, language: aiLanguage }),
+      });
+      const data = await res.json();
+      speakAndListen(data.text || 'לא הצלחתי לייצר סיכום חודשי.');
+    } catch {
+      speakAndListen('מצטערת, לא הצלחתי לייצר סיכום חודשי.');
+    }
+  }, [tasks, habits, habitLogs, goals, reflections, desires, aiLanguage, speakAndListen]);
 
   const handleMicPress = () => {
     if (state === 'focus') return;
@@ -433,6 +466,16 @@ export default function JarvisScreen({
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
 
+  // Momentum stats
+  const today   = new Date().toISOString().slice(0, 10);
+  const weekAgo = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); })();
+  const doneThisWeek   = tasks.filter(t => t.status === 'done' && (t.updatedAt || '') >= weekAgo).length;
+  const habitsDoneToday = habitLogs.filter(l => l.date === today).length;
+  const activeGoals     = goals.filter(g => g.status === 'active');
+  const totalMilestones = activeGoals.reduce((a, g) => a + g.milestones.length, 0);
+  const doneMilestones  = activeGoals.reduce((a, g) => a + g.milestones.filter(m => m.completed).length, 0);
+  const goalsPct        = totalMilestones > 0 ? Math.round(doneMilestones / totalMilestones * 100) : null;
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#050505' }}>
 
@@ -459,13 +502,31 @@ export default function JarvisScreen({
             ⚡
           </button>
           <button
-            onClick={() => { if (started && state === 'idle') fetchWeeklyReview(); else if (!started) { setStarted(true); fetchWeeklyReview(); } }}
+            onClick={() => { if (!started) { setStarted(true); localStorage.setItem('jarvis_started','1'); } fetchWeeklyReview(); }}
             title="סיכום שבועי"
             className="w-9 h-9 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 transition-opacity text-base"
             style={{ background: 'rgba(255,255,255,0.07)' }}
           >
             📋
           </button>
+          <button
+            onClick={() => { if (!started) { setStarted(true); localStorage.setItem('jarvis_started','1'); } fetchMonthlyReview(); }}
+            title="סיכום חודשי"
+            className="w-9 h-9 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 transition-opacity text-base"
+            style={{ background: 'rgba(255,255,255,0.07)' }}
+          >
+            🗓
+          </button>
+          {messages.length > 0 && (
+            <button
+              onClick={() => { if (window.confirm('למחוק את היסטוריית השיחה?')) clearHistory(); }}
+              title="נקה שיחה"
+              className="w-9 h-9 flex items-center justify-center rounded-full opacity-40 hover:opacity-70 transition-opacity text-base"
+              style={{ background: 'rgba(255,255,255,0.07)' }}
+            >
+              🗑
+            </button>
+          )}
         </div>
       </div>
 
@@ -541,6 +602,30 @@ export default function JarvisScreen({
 
           {/* Status */}
           <p className="text-center text-xs text-gray-500 tracking-wider mb-2 flex-shrink-0">{statusLabel[state]}</p>
+
+          {/* Momentum strip */}
+          {(doneThisWeek > 0 || habitsDoneToday > 0 || goalsPct !== null) && (
+            <div className="flex-shrink-0 flex items-center justify-center gap-2 px-4 mb-3">
+              {doneThisWeek > 0 && (
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium"
+                     style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)' }}>
+                  ✅ {doneThisWeek} השבוע
+                </div>
+              )}
+              {habits.length > 0 && (
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium"
+                     style={{ background: 'rgba(251,191,36,0.12)', color: '#f59e0b', border: '1px solid rgba(251,191,36,0.2)' }}>
+                  🔥 {habitsDoneToday}/{habits.length} הרגלים
+                </div>
+              )}
+              {goalsPct !== null && (
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium"
+                     style={{ background: accentColor + '18', color: accentColor, border: `1px solid ${accentColor}33` }}>
+                  🎯 {goalsPct}% יעדים
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Shortcuts panel */}
           {showShortcuts && (
@@ -745,11 +830,11 @@ export default function JarvisScreen({
           <div className="flex-shrink-0 px-6 pb-8 pt-1 flex items-center gap-4">
             {!started ? (
               <button
-                onClick={() => { setStarted(true); fetchBriefing(); }}
+                onClick={() => { setStarted(true); localStorage.setItem('jarvis_started','1'); fetchBriefing(); }}
                 className="flex-1 py-4 rounded-2xl text-base font-bold transition-all active:scale-[0.98]"
                 style={{ background: accentColor, color: '#000' }}
               >
-                הפעל ג'ארוויס
+                {messages.length > 0 ? '▶ המשך שיחה' : 'הפעל ג\'ארוויס'}
               </button>
             ) : (
               <>
