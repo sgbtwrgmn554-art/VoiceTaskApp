@@ -72,12 +72,27 @@ function fmtTime(sec: number): string {
 const ENERGY_LABELS = ['', '😴 עייף', '🥱 נמוך', '😐 בסדר', '💪 טוב', '🔥 מלא אנרגיה'];
 const ENERGY_ICONS  = ['', '😴', '🥱', '😐', '💪', '🔥'];
 
-const QUICK_PROMPTS = [
-  { label: 'מה עלי לעשות עכשיו?', icon: '🎯' },
-  { label: 'בנה לי לו"ז להיום', icon: '📅' },
-  { label: 'בדוק את ההרגלים שלי', icon: '✅' },
-  { label: 'מה המצב עם היעדים שלי?', icon: '🏆' },
-];
+function getQuickPrompts() {
+  const hour = new Date().getHours();
+  if (hour < 12) return [
+    { label: 'מה יש לי היום?', icon: '☀️' },
+    { label: 'בנה לי לו"ז להיום', icon: '📅' },
+    { label: 'תן לי דחיפה לצאת לדרך', icon: '🚀' },
+    { label: 'אילו הרגלים לעשות עכשיו?', icon: '✅' },
+  ];
+  if (hour < 17) return [
+    { label: 'מה הדבר הכי חשוב עכשיו?', icon: '🎯' },
+    { label: 'יש לי מכשול — עזור לי', icon: '🧱' },
+    { label: 'בדוק את ההתקדמות שלי', icon: '📊' },
+    { label: 'בנה לי תוכנית להמשך היום', icon: '📝' },
+  ];
+  return [
+    { label: 'סכם לי את היום', icon: '🌙' },
+    { label: 'מה עשיתי היום?', icon: '✅' },
+    { label: 'תכנן לי את מחר', icon: '📅' },
+    { label: 'רפלקציה על היום', icon: '💭' },
+  ];
+}
 
 export default function JarvisScreen({
   tasks, goals, habits, habitLogs = [], reflections = [], desires = [],
@@ -160,6 +175,7 @@ export default function JarvisScreen({
         question, tasks, habits, goals, habitLogs, desires,
         language: aiLanguage, jarvisMode, appearanceLevel,
         energyLevel: energyLevel || undefined,
+        conversationHistory: messages.slice(-6),
       };
       if (image) { body.imageBase64 = image.base64; body.imageMediaType = image.mediaType; }
       const res = await fetch('/api/jarvis', {
@@ -190,7 +206,7 @@ export default function JarvisScreen({
       speakThen(err, () => startListening());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addMsg, tasks, habits, goals, habitLogs, desires, aiLanguage, jarvisMode, appearanceLevel, energyLevel, speakThen, startListening]);
+  }, [addMsg, tasks, habits, goals, habitLogs, desires, messages, aiLanguage, jarvisMode, appearanceLevel, energyLevel, speakThen, startListening]);
 
   const handleVoiceResult = useCallback((text: string) => {
     const lower = text.trim().toLowerCase();
@@ -690,11 +706,45 @@ export default function JarvisScreen({
                   )}
                 </div>
 
+                {/* Today's open tasks as tappable chips */}
+                {(() => {
+                  const topTasks = tasks
+                    .filter(t => t.status !== 'done')
+                    .sort((a, b) => {
+                      const pOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+                      return (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
+                    })
+                    .slice(0, 4);
+                  if (!topTasks.length) return null;
+                  return (
+                    <div>
+                      <p className="text-xs text-gray-600 mb-2 px-1">📋 משימות פתוחות</p>
+                      <div className="flex flex-wrap gap-2">
+                        {topTasks.map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => { setStarted(true); sendQuestion(`עזור לי עם המשימה: "${t.title}"`); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-all active:scale-95"
+                            style={{
+                              background: t.priority === 'high' ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.05)',
+                              border: `1px solid ${t.priority === 'high' ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                              color: t.priority === 'high' ? '#fca5a5' : '#9ca3af',
+                            }}
+                          >
+                            {t.priority === 'high' ? '🔴' : t.priority === 'medium' ? '🟡' : '⚪'}
+                            <span className="truncate max-w-[120px]">{t.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Quick prompts */}
                 <div>
                   <p className="text-xs text-gray-600 mb-2 px-1">שאלות מהירות</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {QUICK_PROMPTS.map(qp => (
+                    {getQuickPrompts().map(qp => (
                       <button
                         key={qp.label}
                         onClick={() => { setStarted(true); sendQuestion(qp.label); }}
@@ -743,6 +793,21 @@ export default function JarvisScreen({
                 </div>
               </div>
             ))}
+
+            {/* Typing indicator */}
+            {state === 'thinking' && (
+              <div className="flex justify-end fade-up">
+                <div className="rounded-2xl px-4 py-3" style={{ background: accentColor + '18', border: `1px solid ${accentColor}22` }}>
+                  <p className="text-[10px] mb-1.5 opacity-40" style={{ color: accentColor }}>JARVIS</p>
+                  <div className="flex gap-1.5 items-center">
+                    {[0,1,2].map(i => (
+                      <div key={i} className="w-1.5 h-1.5 rounded-full animate-bounce"
+                           style={{ background: accentColor, animationDelay: `${i * 0.15}s`, opacity: 0.7 }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Confirmation card */}

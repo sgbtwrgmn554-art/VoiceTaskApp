@@ -41,6 +41,7 @@ export default async function handler(req: any, res: any) {
       imageBase64,
       imageMediaType = 'image/jpeg',
       energyLevel,
+      conversationHistory = [],
     } = body;
 
     const nowISO   = new Date().toISOString();
@@ -198,6 +199,15 @@ TEXT RULES:
 - No matching action: rich helpful answer matching coaching tone
 ${language === 'english' ? '- Respond in English.' : '- Always respond in Hebrew.'}`;
 
+    // Build conversation history (last 6 text exchanges for context)
+    const historyMessages: Array<{ role: 'user' | 'assistant'; content: string }> = (conversationHistory as any[])
+      .filter((m: any) => m.text && typeof m.text === 'string')
+      .slice(-6)
+      .map((m: any) => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }));
+
     let userContent: any;
     if (imageBase64) {
       userContent = [
@@ -210,9 +220,9 @@ ${language === 'english' ? '- Respond in English.' : '- Always respond in Hebrew
 
     const response = await client.messages.create({
       model: imageBase64 ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
-      max_tokens: imageBase64 ? 700 : 700,
+      max_tokens: 700,
       system,
-      messages: [{ role: 'user', content: userContent }],
+      messages: [...historyMessages, { role: 'user', content: userContent }],
     });
 
     const raw = (response.content[0] as Anthropic.TextBlock).text.trim();
