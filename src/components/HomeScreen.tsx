@@ -211,9 +211,9 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
             </div>
           )}
 
-          {/* Empty state — fills ALL remaining height */}
+          {/* Empty state — pushed to bottom */}
           {filteredActive.length === 0 && filteredDone.length === 0 && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-5 pb-28">
+            <div className="flex-1 flex flex-col items-center justify-end gap-5 pb-6">
               {searchQuery || filter !== 'all' ? (
                 <>
                   <span className="text-5xl">{filter === 'done' ? '✅' : filter === 'high' ? '🔥' : filter === 'today' ? '📅' : '🔍'}</span>
@@ -225,18 +225,17 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
                 </>
               ) : (
                 <>
-                  <button onClick={onOpenJarvis}
-                    className="w-24 h-24 rounded-full flex items-center justify-center transition-all active:scale-90"
-                    style={{ background: accentColor + '18', border: `2px solid ${accentColor}40`, boxShadow: `0 0 50px ${accentColor}30` }}>
-                    <svg width="38" height="38" viewBox="0 0 24 24" fill={accentColor}>
-                      <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
-                    </svg>
-                  </button>
                   <div className="text-center">
                     <p className="text-white font-bold text-xl">שוחח עם ג׳רוויס</p>
                     <p className="text-gray-500 text-sm mt-1.5">לחץ לעזרה ותכנון</p>
-                    <p className="text-gray-600 text-sm mt-1">או הוסף משימה עם + למטה</p>
                   </div>
+                  <button onClick={onOpenJarvis}
+                    className="w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-90"
+                    style={{ background: accentColor + '18', border: `2px solid ${accentColor}40`, boxShadow: `0 0 40px ${accentColor}30` }}>
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill={accentColor}>
+                      <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+                    </svg>
+                  </button>
                 </>
               )}
             </div>
