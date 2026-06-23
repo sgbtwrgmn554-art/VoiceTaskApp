@@ -145,8 +145,8 @@ export default function App() {
   return (
     <div className="flex flex-col h-full bg-black text-white" style={{ '--accent': accentColor } as React.CSSProperties}>
 
-      {/* Screens */}
-      <div className="flex-1 overflow-hidden relative">
+      {/* Screens — padded so fixed nav doesn't overlap content */}
+      <div className="flex-1 overflow-hidden relative" style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}>
         {showNewRecording ? (
           <NewRecordingScreen
             key="new-recording"
@@ -304,15 +304,20 @@ export default function App() {
         />
       )}
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation — fixed to physical screen bottom */}
       {!showNewRecording && (
-        <nav className="flex-shrink-0 flex items-end justify-around"
+        <nav className="flex items-end justify-around"
              style={{
-               background: 'rgba(10,10,10,0.95)',
+               position: 'fixed',
+               bottom: 0,
+               left: 0,
+               right: 0,
+               zIndex: 50,
+               background: 'rgba(10,10,10,0.97)',
                backdropFilter: 'blur(20px)',
                WebkitBackdropFilter: 'blur(20px)',
                borderTop: '1px solid rgba(255,255,255,0.07)',
-               paddingBottom: 'env(safe-area-inset-bottom, 10px)',
+               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
                paddingTop: '10px',
              }}>
           <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => switchTab('profile')}  accentColor={accentColor} />
