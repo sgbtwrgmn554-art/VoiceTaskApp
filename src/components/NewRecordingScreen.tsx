@@ -10,6 +10,7 @@ type SmartSavePayload =
 interface Props {
   onBack: () => void;
   onSmartSave: (payload: SmartSavePayload) => void;
+  onAskJarvis?: (question: string) => void;
   accentColor: string;
   categories?: string[];
   defaultCategory?: string;
@@ -48,7 +49,7 @@ function errorMessage(code: string): string {
 }
 
 export default function NewRecordingScreen({
-  onBack, onSmartSave, accentColor,
+  onBack, onSmartSave, onAskJarvis, accentColor,
   categories = DEFAULT_CATEGORIES,
   defaultCategory = 'כללי',
   defaultReminderTime = '',
@@ -355,10 +356,10 @@ export default function NewRecordingScreen({
               <div className="flex gap-2 pt-1">
                 <button
                   onClick={() => setShowManual(!showManual)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-400 transition-colors"
+                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 transition-colors"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
-                  ✏️ ערוך
+                  ✏️
                 </button>
                 <button
                   onClick={handleSave}
@@ -367,6 +368,18 @@ export default function NewRecordingScreen({
                 >
                   {preview.type === 'goal' ? '🎯 שמור כיעד' : '✅ שמור'}
                 </button>
+                {preview.type === 'goal' && onAskJarvis && (
+                  <button
+                    onClick={() => {
+                      handleSave();
+                      onAskJarvis(`אני רוצה ${preview.title} — תעזור לי לבנות תוכנית ומפת דרכים מדויקת להגיע לשם`);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-transform active:scale-95"
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+                  >
+                    🤖 תוכנית
+                  </button>
+                )}
               </div>
             </div>
           )}

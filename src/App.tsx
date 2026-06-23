@@ -34,6 +34,7 @@ export default function App() {
   const [tab, setTab] = useState<AppTab>('home');
   const [showNewRecording, setShowNewRecording] = useState(false);
   const [showJarvis, setShowJarvis] = useState(false);
+  const [jarvisInitialQ, setJarvisInitialQ] = useState<string | undefined>();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(() => {
     const saved = localStorage.getItem('vt_user');
@@ -154,6 +155,11 @@ export default function App() {
                 setShowNewRecording(false);
               }
             }}
+            onAskJarvis={(q) => {
+              setShowNewRecording(false);
+              setJarvisInitialQ(q);
+              setShowJarvis(true);
+            }}
             accentColor={accentColor}
             categories={settings.customCategories}
             defaultCategory={settings.defaultCategory}
@@ -268,7 +274,8 @@ export default function App() {
           appearanceLevel={settings.appearanceLevel}
           voiceShortcuts={settings.voiceShortcuts}
           accentColor={accentColor}
-          onClose={() => setShowJarvis(false)}
+          initialQuestion={jarvisInitialQ}
+          onClose={() => { setShowJarvis(false); setJarvisInitialQ(undefined); }}
           onMarkTaskDone={markTaskDone}
           onCreateTask={(input) => {
             createTask({

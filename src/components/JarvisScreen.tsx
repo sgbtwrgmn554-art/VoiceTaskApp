@@ -42,6 +42,7 @@ interface Props {
   appearanceLevel?: string;
   voiceShortcuts?: VoiceShortcut[];
   accentColor: string;
+  initialQuestion?: string;
   onClose: () => void;
   onMarkTaskDone: (id: string) => void;
   onCreateTask: (input: { title: string; priority?: string; date?: string; time?: string }) => void;
@@ -97,7 +98,7 @@ function getQuickPrompts() {
 export default function JarvisScreen({
   tasks, goals, habits, habitLogs = [], reflections = [], desires = [],
   aiLanguage = 'hebrew', jarvisMode = 'coach', appearanceLevel = 'balanced',
-  voiceShortcuts = [], accentColor, onClose,
+  voiceShortcuts = [], accentColor, initialQuestion, onClose,
   onMarkTaskDone, onCreateTask, onUpdateTask, onDeleteTask,
   onAddHabit, onToggleHabit, onDeleteHabit,
   onCreateGoal, onDeleteGoal, onUpdateGoalWhy, onAddDesire,
@@ -435,6 +436,16 @@ export default function JarvisScreen({
     stop();
     try { recognitionRef.current?.stop(); } catch {}
     if (focusTimerRef.current) clearInterval(focusTimerRef.current);
+  }, []);
+
+  // Auto-send initial question when opened from another screen
+  useEffect(() => {
+    if (!initialQuestion) return;
+    setStarted(true);
+    localStorage.setItem('jarvis_started', '1');
+    const timer = setTimeout(() => sendQuestion(initialQuestion), 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const statusLabel: Record<JarvisState, string> = {
