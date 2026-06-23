@@ -310,7 +310,7 @@ export default function App() {
              style={{
                background: '#0a0a0a',
                borderTop: '1px solid rgba(255,255,255,0.07)',
-               paddingBottom: 'env(safe-area-inset-bottom, 34px)',
+               paddingBottom: '4px',
                paddingTop: '10px',
              }}>
           <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => switchTab('profile')}  accentColor={accentColor} />
@@ -333,6 +333,8 @@ export default function App() {
           <NavBtn icon={<ChatIcon />}     label="AI"       active={tab === 'chat'}     onClick={() => switchTab('chat')}     accentColor={accentColor} />
         </nav>
       )}
+      {/* Safe area fill — covers iOS home indicator zone below nav bar */}
+      <div style={{ flexShrink: 0, height: 'env(safe-area-inset-bottom, 0px)', background: '#0a0a0a' }} />
     </div>
   );
 }
