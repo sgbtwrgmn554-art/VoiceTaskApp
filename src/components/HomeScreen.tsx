@@ -83,40 +83,39 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
   };
 
   return (
-    <div className="flex flex-col h-full" style={{ background: '#0a0a0a' }}>
+    <div className="flex flex-col h-full relative" style={{ background: '#0a0a0a' }}>
 
-      {/* ── Hero section ── */}
+      {/* ── HERO CARD — colored gradient top ── */}
       <div
-        className="flex-shrink-0 px-5 pt-6 pb-5"
+        className="flex-shrink-0 px-5 pt-6 pb-6 hero-enter"
         style={{
-          opacity: visible ? 1 : 0,
-          transform: visible ? 'none' : 'translateY(-10px)',
-          transition: 'all 0.4s cubic-bezier(.4,0,.2,1)',
+          background: `linear-gradient(160deg, ${accentColor}35 0%, ${accentColor}12 55%, rgba(0,0,0,0) 100%)`,
+          borderRadius: '0 0 28px 28px',
         }}
       >
         {/* Top bar */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-4">
           <button
             onClick={onOpenJarvis}
             className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ background: 'rgba(255,255,255,0.1)', border: `1px solid ${accentColor}40` }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white" opacity={0.8}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
               <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
             </svg>
           </button>
 
-          <p className="text-[12px] font-medium tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <p className="text-[11px] font-semibold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.45)' }}>
             {dayLabel} · {dateStr}
           </p>
 
           <div className="flex items-center gap-1.5">
-            <IconBtn active={searchOpen} accentColor={accentColor} onClick={() => { setSearchOpen(v => !v); setSearchQuery(''); }}>
+            <HeroBtn active={searchOpen} onClick={() => { setSearchOpen(v => !v); setSearchQuery(''); }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
-            </IconBtn>
-            <IconBtn active={viewMode === 'matrix'} accentColor={accentColor} onClick={() => setViewMode(v => v === 'list' ? 'matrix' : 'list')}>
+            </HeroBtn>
+            <HeroBtn active={viewMode === 'matrix'} onClick={() => setViewMode(v => v === 'list' ? 'matrix' : 'list')}>
               {viewMode === 'list' ? (
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
@@ -130,15 +129,30 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
                   <circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/>
                 </svg>
               )}
-            </IconBtn>
+            </HeroBtn>
           </div>
         </div>
 
         {/* Greeting */}
-        <h1 className="text-3xl font-bold text-white leading-tight">{greeting} 👋</h1>
-        <p className="text-sm mt-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
-          {activeTasks.length > 0 ? `יש לך ${activeTasks.length} משימות פעילות` : 'אין משימות — יום פנוי!'}
+        <h1 className="text-[32px] font-black text-white leading-tight tracking-tight">{greeting} 👋</h1>
+        <p className="text-sm mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          {activeTasks.length > 0 ? `יש לך ${activeTasks.length} משימות פעילות` : 'כל המשימות הושלמו 🎉'}
         </p>
+
+        {/* Search bar */}
+        {searchOpen && (
+          <div className="mt-4">
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="חיפוש משימות..."
+              className="w-full rounded-2xl px-4 py-3 text-sm outline-none text-white placeholder-gray-500"
+              style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)' }}
+              dir="rtl"
+            />
+          </div>
+        )}
 
         {/* Stat cards */}
         <div className="flex gap-3 mt-5">
@@ -146,170 +160,153 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
           <StatCard icon="🎯" value={activeGoals}         label="יעדים"   color="#a78bfa" />
           <StatCard icon="🔥" value={habits.length}       label="הרגלים"  color="#f97316" />
         </div>
+      </div>
 
-        {/* Search bar (inline expand) */}
-        {searchOpen && (
-          <div className="mt-3">
-            <input
-              autoFocus
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="חיפוש משימות..."
-              className="w-full rounded-2xl px-4 py-3 text-sm outline-none text-white placeholder-gray-600 border border-white/10"
-              style={{ background: '#141414' }}
-              dir="rtl"
-            />
+      {/* ── TASK AREA ── */}
+      <div className="flex-1 flex flex-col overflow-hidden mt-1">
+
+        {/* Section header + filter tabs */}
+        <div className="flex-shrink-0 px-4 pt-4 pb-1">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-bold text-white">
+              {searchQuery ? 'תוצאות חיפוש' : filter === 'done' ? 'הושלמו' : filter === 'high' ? 'דחוף' : filter === 'today' ? 'היום' : 'משימות'}
+            </span>
+            <IconBtn label="🧠" active={showSuggestions} accentColor={accentColor} onClick={fetchSuggestions} />
           </div>
-        )}
-      </div>
 
-      {/* Divider */}
-      <div className="mx-5" style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
-
-      {/* Section row */}
-      <div className="flex-shrink-0 flex items-center justify-between px-5 py-3">
-        <span className="text-sm font-semibold text-white">
-          {searchQuery ? 'תוצאות חיפוש' : 'משימות'}
-        </span>
-        <IconBtn label="🧠" active={showSuggestions} accentColor={accentColor} onClick={fetchSuggestions} />
-      </div>
-
-      {/* Filter tabs */}
-      <div className="flex-shrink-0 flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
-        {([
-          { key: 'all',   label: `הכל (${activeTasks.length})` },
-          { key: 'high',  label: `🔥 דחוף (${tasks.filter(t=>t.status!=='done'&&t.priority==='high').length})` },
-          { key: 'today', label: `📅 היום (${tasks.filter(t=>t.status!=='done'&&t.reminder?.date===todayStr).length})` },
-          { key: 'done',  label: `✅ הושלמו (${tasks.filter(t=>t.status==='done').length})` },
-        ] as const).map(f => (
-          <button key={f.key} onClick={() => setFilter(f.key)}
-            className="flex-shrink-0 text-xs px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
-            style={filter === f.key
-              ? { background: accentColor, color: '#000', fontWeight: 700 }
-              : { background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}>
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Scrollable content ── */}
-      <div className="flex-1 overflow-y-auto flex flex-col px-4">
-
-        {/* AI suggestions */}
-        {showSuggestions && (
-          <div className="mb-3 rounded-2xl p-3.5 fade-up" style={{ background: accentColor + '10', border: `1px solid ${accentColor}30` }}>
-            <p className="text-xs font-semibold mb-2" style={{ color: accentColor }}>🧠 המלצות ליום הזה</p>
-            {loadingSug ? (
-              <p className="text-xs text-gray-500 text-center py-2">טוען...</p>
-            ) : suggestions.map((s, i) => (
-              <p key={i} className="text-xs text-gray-300 py-1 border-b last:border-0" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>• {s}</p>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            {([
+              { key: 'all',   label: `הכל`, count: activeTasks.length },
+              { key: 'high',  label: `🔥 דחוף`, count: tasks.filter(t=>t.status!=='done'&&t.priority==='high').length },
+              { key: 'today', label: `📅 היום`,  count: tasks.filter(t=>t.status!=='done'&&t.reminder?.date===todayStr).length },
+              { key: 'done',  label: `✅ הושלמו`, count: tasks.filter(t=>t.status==='done').length },
+            ] as const).map(f => (
+              <button key={f.key} onClick={() => setFilter(f.key)}
+                className="pill-slide flex-shrink-0 flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap font-medium"
+                style={filter === f.key
+                  ? { background: accentColor, color: '#000' }
+                  : { background: 'rgba(255,255,255,0.07)', color: '#6b7280', border: '1px solid rgba(255,255,255,0.08)' }}>
+                {f.label}
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                  style={{ background: filter === f.key ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)' }}>
+                  {f.count}
+                </span>
+              </button>
             ))}
           </div>
-        )}
+        </div>
 
-        {/* Empty state — flex-1 so it fills ALL remaining height */}
-        {filteredActive.length === 0 && filteredDone.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-5 pb-8">
-            {searchQuery || filter !== 'all' ? (
-              <>
-                <span className="text-5xl">{filter === 'done' ? '✅' : filter === 'high' ? '🔥' : filter === 'today' ? '📅' : '🔍'}</span>
-                <p className="text-gray-400 font-semibold">
-                  {filter === 'done' ? 'אין משימות שהושלמו' :
-                   filter === 'high' ? 'אין משימות דחופות' :
-                   filter === 'today' ? 'אין משימות להיום' :
-                   'לא נמצאו תוצאות'}
-                </p>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={onOpenJarvis}
-                  className="w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-90"
-                  style={{
-                    background: accentColor + '18',
-                    border: `2px solid ${accentColor}40`,
-                    boxShadow: `0 0 40px ${accentColor}25`,
-                  }}
-                >
-                  <svg width="34" height="34" viewBox="0 0 24 24" fill={accentColor}>
-                    <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
-                  </svg>
-                </button>
-                <div className="text-center">
-                  <p className="text-white font-bold text-lg">שלום!</p>
-                  <p className="text-gray-500 text-sm mt-1">לחץ על ג׳רוויס לעזרה</p>
-                  <p className="text-gray-600 text-sm">או הוסף משימה בלחצן למטה</p>
-                </div>
-                <div className="flex gap-3 w-full mt-2">
-                  <QuickCard icon="🎤" title="הקלטה" subtitle="הקלט משימה חדשה" onClick={onNewRecording} accentColor={accentColor} />
-                  <QuickCard icon="🤖" title="ג׳רוויס" subtitle="שאל, תכנן, בנה" onClick={onOpenJarvis} accentColor="#a78bfa" />
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        {/* Scrollable task list */}
+        <div className="flex-1 overflow-y-auto flex flex-col px-4 pt-2">
 
-        {/* Task list */}
-        {viewMode === 'matrix' ? (
-          <div className="grid grid-cols-2 gap-2">
-            {filteredActive.map((t, i) => (
-              <MatrixCard key={t.id} task={t} index={i}
-                onDone={() => onMarkDone(t.id)}
-                onDelete={() => { onDeleteTask(t.id); setMenuOpen(null); }}
-                accentColor={accentColor} />
-            ))}
-          </div>
-        ) : (
-          filteredActive.map((t, i) => (
-            <TaskRow key={t.id} task={t} index={i}
-              onDone={() => onMarkDone(t.id)}
-              onDelete={() => { onDeleteTask(t.id); setMenuOpen(null); }}
-              onEdit={() => { setEditingTask(t); setMenuOpen(null); }}
-              menuOpen={menuOpen === t.id}
-              onMenuToggle={() => setMenuOpen(menuOpen === t.id ? null : t.id)}
-              accentColor={accentColor} />
-          ))
-        )}
-
-        {filteredDone.length > 0 && (
-          <>
-            <div className="flex items-center gap-2 mt-5 mb-2">
-              <div className="flex-1 h-px bg-gray-800" />
-              <span className="text-xs text-gray-600">הושלמו ({filteredDone.length})</span>
-              <div className="flex-1 h-px bg-gray-800" />
+          {/* AI suggestions */}
+          {showSuggestions && (
+            <div className="mb-3 rounded-2xl p-3.5 fade-up" style={{ background: accentColor + '10', border: `1px solid ${accentColor}30` }}>
+              <p className="text-xs font-semibold mb-2" style={{ color: accentColor }}>🧠 המלצות ליום הזה</p>
+              {loadingSug ? (
+                <p className="text-xs text-gray-500 text-center py-2">טוען...</p>
+              ) : suggestions.map((s, i) => (
+                <p key={i} className="text-xs text-gray-300 py-1 border-b last:border-0" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>• {s}</p>
+              ))}
             </div>
-            {filteredDone.map((t, i) => (
-              <TaskRow key={t.id} task={t} index={i} done
+          )}
+
+          {/* Empty state — fills ALL remaining height */}
+          {filteredActive.length === 0 && filteredDone.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-5 pb-20">
+              {searchQuery || filter !== 'all' ? (
+                <>
+                  <span className="text-5xl">{filter === 'done' ? '✅' : filter === 'high' ? '🔥' : filter === 'today' ? '📅' : '🔍'}</span>
+                  <p className="text-gray-400 font-semibold text-center">
+                    {filter === 'done' ? 'אין משימות שהושלמו' :
+                     filter === 'high' ? 'אין משימות דחופות' :
+                     filter === 'today' ? 'אין משימות להיום' : 'לא נמצאו תוצאות'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <button onClick={onOpenJarvis}
+                    className="w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-90"
+                    style={{ background: accentColor + '18', border: `2px solid ${accentColor}40`, boxShadow: `0 0 40px ${accentColor}25` }}>
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill={accentColor}>
+                      <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+                    </svg>
+                  </button>
+                  <div className="text-center">
+                    <p className="text-white font-bold text-lg">שוחח עם ג׳רוויס</p>
+                    <p className="text-gray-500 text-sm mt-1">לחץ לעזרה ותכנון</p>
+                  </div>
+                  <div className="flex gap-3 w-full">
+                    <QuickCard icon="🎤" title="הקלטה" subtitle="הקלט משימה" onClick={onNewRecording} accentColor={accentColor} />
+                    <QuickCard icon="🤖" title="ג׳רוויס" subtitle="שאל ותכנן" onClick={onOpenJarvis} accentColor="#a78bfa" />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Task list */}
+          {viewMode === 'matrix' ? (
+            <div className="grid grid-cols-2 gap-2">
+              {filteredActive.map((t, i) => (
+                <MatrixCard key={t.id} task={t} index={i}
+                  onDone={() => onMarkDone(t.id)}
+                  onDelete={() => { onDeleteTask(t.id); setMenuOpen(null); }}
+                  accentColor={accentColor} />
+              ))}
+            </div>
+          ) : (
+            filteredActive.map((t, i) => (
+              <TaskRow key={t.id} task={t} index={i}
                 onDone={() => onMarkDone(t.id)}
                 onDelete={() => { onDeleteTask(t.id); setMenuOpen(null); }}
                 onEdit={() => { setEditingTask(t); setMenuOpen(null); }}
                 menuOpen={menuOpen === t.id}
                 onMenuToggle={() => setMenuOpen(menuOpen === t.id ? null : t.id)}
                 accentColor={accentColor} />
-            ))}
-          </>
-        )}
+            ))
+          )}
 
-        <div className="h-4" />
+          {filteredDone.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 mt-5 mb-2">
+                <div className="flex-1 h-px bg-gray-800" />
+                <span className="text-xs text-gray-600">הושלמו ({filteredDone.length})</span>
+                <div className="flex-1 h-px bg-gray-800" />
+              </div>
+              {filteredDone.map((t, i) => (
+                <TaskRow key={t.id} task={t} index={i} done
+                  onDone={() => onMarkDone(t.id)}
+                  onDelete={() => { onDeleteTask(t.id); setMenuOpen(null); }}
+                  onEdit={() => { setEditingTask(t); setMenuOpen(null); }}
+                  menuOpen={menuOpen === t.id}
+                  onMenuToggle={() => setMenuOpen(menuOpen === t.id ? null : t.id)}
+                  accentColor={accentColor} />
+              ))}
+            </>
+          )}
+
+          <div className="h-24" />
+        </div>
       </div>
 
-      {/* ── Sticky bottom recording button ── */}
-      <div className="flex-shrink-0 px-4 pb-3 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <button
-          onClick={onNewRecording}
-          className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-base transition-all active:scale-[0.97]"
-          style={{
-            background: accentColor,
-            color: '#000',
-            boxShadow: `0 4px 24px ${accentColor}55`,
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="black">
-            <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
-          </svg>
-          + הוסף משימה
-        </button>
-      </div>
+      {/* ── FAB — floating action button ── */}
+      <button
+        onClick={onNewRecording}
+        className="absolute bottom-5 left-5 flex items-center gap-2.5 rounded-full font-bold text-sm transition-all active:scale-95"
+        style={{
+          background: accentColor,
+          color: '#000',
+          padding: '14px 22px',
+          boxShadow: `0 6px 28px ${accentColor}70`,
+          zIndex: 30,
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="black">
+          <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+        </svg>
+        + הוסף
+      </button>
 
       {editingTask && (
         <EditTaskModal
@@ -328,13 +325,26 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
 function StatCard({ icon, value, label, color }: { icon: string; value: number; label: string; color: string }) {
   return (
     <div
-      className="flex-1 rounded-2xl p-3.5 flex flex-col items-center gap-1.5"
-      style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)' }}
+      className="flex-1 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 stat-pop"
+      style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}
     >
       <span className="text-2xl">{icon}</span>
       <span className="text-xl font-bold leading-none" style={{ color }}>{value}</span>
-      <span className="text-[11px] text-gray-600">{label}</span>
+      <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</span>
     </div>
+  );
+}
+
+function HeroBtn({ children, active, onClick }: { children: React.ReactNode; active?: boolean; onClick?: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90"
+      style={{
+        background: active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
+        color: active ? '#fff' : 'rgba(255,255,255,0.6)',
+      }}>
+      {children}
+    </button>
   );
 }
 
