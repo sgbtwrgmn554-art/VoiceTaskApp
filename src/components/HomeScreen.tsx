@@ -44,7 +44,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
   const dayLabel = `יום ${DAY_NAMES[now.getDay()]}`;
   const dateLabel = `${now.getDate()} ${MONTH_NAMES[now.getMonth()]}`;
   const greeting = getGreeting();
-  const activeTodayHabits = habits.filter(h => !h.archivedAt).length;
+  const activeTodayHabits = habits.length;
 
   const fetchSuggestions = async () => {
     if (showSuggestions) { setShowSuggestions(false); return; }
@@ -112,7 +112,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
           <div className="w-px h-8" style={{ background: 'rgba(255,255,255,0.07)' }} />
           <StatChip
             icon="🎯"
-            value={goals.filter(g => !g.completedAt).length}
+            value={goals.filter(g => g.status !== 'completed').length}
             label="יעדים"
             color="#a78bfa"
           />
