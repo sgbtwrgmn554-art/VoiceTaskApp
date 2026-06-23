@@ -236,6 +236,7 @@ export default function ProfileScreen({
   const [newCat, setNewCat]               = useState('');
   const [editingCat, setEditingCat]       = useState<string | null>(null);
   const [editCatVal, setEditCatVal]       = useState('');
+  const [catEditMode, setCatEditMode]     = useState(false);
   const [newDomainLabel, setNewDomainLabel] = useState('');
   const [newDomainEmoji, setNewDomainEmoji] = useState('⭐');
   const [newDomainColor, setNewDomainColor] = useState('#a855f7');
@@ -291,11 +292,25 @@ export default function ProfileScreen({
         <Card>
           {/* Custom categories */}
           <div className="px-4 py-3.5 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-            <p className="text-sm text-white mb-3">קטגוריות</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-white">קטגוריות</p>
+              <button
+                onClick={() => setCatEditMode(v => !v)}
+                className="text-xs px-3 py-1 rounded-full transition-all"
+                style={{
+                  background: catEditMode ? accentColor + '22' : 'rgba(255,255,255,0.07)',
+                  color: catEditMode ? accentColor : '#9ca3af',
+                  border: `1px solid ${catEditMode ? accentColor + '55' : 'rgba(255,255,255,0.1)'}`,
+                }}>
+                {catEditMode ? '✓ סיום' : '✏️ ערוך'}
+              </button>
+            </div>
+
+            {/* Category chips */}
             <div className="flex flex-wrap gap-2 mb-3">
               {settings.customCategories.map(cat => (
-                <div key={cat} className="flex items-center gap-1">
-                  {editingCat === cat ? (
+                <div key={cat} className="flex items-center">
+                  {catEditMode && editingCat === cat ? (
                     <input
                       autoFocus
                       value={editCatVal}
@@ -305,22 +320,25 @@ export default function ProfileScreen({
                         if (e.key === 'Escape') setEditingCat(null);
                       }}
                       onBlur={() => { if (editCatVal.trim()) onRenameCategory(cat, editCatVal); setEditingCat(null); }}
-                      className="text-xs px-2 py-1 rounded-full outline-none w-20"
+                      className="text-xs px-2 py-1.5 rounded-full outline-none w-24"
                       style={{ background: accentColor + '22', border: `1px solid ${accentColor}`, color: '#fff' }}
                     />
                   ) : (
                     <button
-                      onDoubleClick={() => { setEditingCat(cat); setEditCatVal(cat); }}
-                      className="text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 group"
-                      style={settings.defaultCategory === cat
+                      onClick={() => {
+                        if (catEditMode) { setEditingCat(cat); setEditCatVal(cat); }
+                        else onUpdateSettings({ defaultCategory: cat });
+                      }}
+                      className="text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all"
+                      style={settings.defaultCategory === cat && !catEditMode
                         ? { background: accentColor + '22', border: `1px solid ${accentColor}`, color: accentColor }
                         : { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#d1d5db' }}>
-                      <span onClick={() => onUpdateSettings({ defaultCategory: cat })}>{cat}</span>
-                      {settings.customCategories.length > 1 && (
+                      {cat}
+                      {catEditMode && settings.customCategories.length > 1 && (
                         <span
                           onClick={e => { e.stopPropagation(); onRemoveCategory(cat); }}
-                          className="text-gray-600 hover:text-red-400 transition-colors leading-none"
-                          style={{ fontSize: '10px' }}>
+                          className="text-red-500 hover:text-red-300 leading-none transition-colors"
+                          style={{ fontSize: '11px' }}>
                           ✕
                         </span>
                       )}
@@ -328,25 +346,34 @@ export default function ProfileScreen({
                   )}
                 </div>
               ))}
+
+              {/* Inline add chip */}
+              {catEditMode && (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    ref={newCatRef}
+                    value={newCat}
+                    onChange={e => setNewCat(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && newCat.trim()) { onAddCategory(newCat.trim()); setNewCat(''); } }}
+                    placeholder="שם קטגוריה..."
+                    className="text-xs px-3 py-1.5 rounded-full outline-none text-white placeholder-gray-600 w-28"
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px dashed rgba(255,255,255,0.2)' }}
+                  />
+                  <button
+                    onClick={() => { if (newCat.trim()) { onAddCategory(newCat.trim()); setNewCat(''); } }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-black font-bold text-lg"
+                    style={{ background: accentColor }}>
+                    +
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="flex gap-2">
-              <input
-                ref={newCatRef}
-                value={newCat}
-                onChange={e => setNewCat(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && newCat.trim()) { onAddCategory(newCat.trim()); setNewCat(''); } }}
-                placeholder="+ קטגוריה חדשה"
-                className="flex-1 text-xs px-3 py-2 rounded-xl outline-none text-white placeholder-gray-600"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
-              />
-              <button
-                onClick={() => { if (newCat.trim()) { onAddCategory(newCat.trim()); setNewCat(''); } }}
-                className="px-3 py-2 rounded-xl text-xs font-bold text-black"
-                style={{ background: accentColor }}>
-                הוסף
-              </button>
-            </div>
-            <p className="text-[10px] text-gray-600 mt-2">לחץ פעמיים על קטגוריה לעריכה • לחץ שם לברירת מחדל</p>
+
+            {!catEditMode && (
+              <p className="text-[10px] text-gray-600">
+                לחץ על קטגוריה לבחירת ברירת מחדל · לחץ ✏️ ערוך לשינוי
+              </p>
+            )}
           </div>
 
           <Row label="עדיפות ברירת מחדל">

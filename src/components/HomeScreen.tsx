@@ -35,6 +35,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode]     = useState<'list' | 'matrix'>('list');
+  const [filter, setFilter]         = useState<'all' | 'high' | 'today' | 'done'>('all');
   const [suggestions, setSuggestions]   = useState<string[]>([]);
   const [loadingSug, setLoadingSug]     = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -48,12 +49,21 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
 
   const activeTasks  = tasks.filter(t => t.status !== 'done');
   const activeGoals  = goals.filter(g => g.status !== 'completed').length;
+  const todayStr     = new Date().toISOString().split('T')[0];
 
-  const filtered     = searchQuery.trim()
+  const bySearch = searchQuery.trim()
     ? tasks.filter(t => t.title.includes(searchQuery) || t.description?.includes(searchQuery))
     : tasks;
-  const filteredActive = filtered.filter(t => t.status !== 'done');
-  const filteredDone   = filtered.filter(t => t.status === 'done');
+
+  const byFilter = bySearch.filter(t => {
+    if (filter === 'done')  return t.status === 'done';
+    if (filter === 'high')  return t.status !== 'done' && t.priority === 'high';
+    if (filter === 'today') return t.status !== 'done' && t.reminder?.date === todayStr;
+    return t.status !== 'done';
+  });
+
+  const filteredActive = filter === 'done' ? [] : byFilter;
+  const filteredDone   = filter === 'done' ? byFilter : (filter === 'all' && !searchQuery ? tasks.filter(t => t.status === 'done') : []);
 
   const fetchSuggestions = async () => {
     if (showSuggestions) { setShowSuggestions(false); return; }
@@ -159,9 +169,27 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
       {/* Section row */}
       <div className="flex-shrink-0 flex items-center justify-between px-5 py-3">
         <span className="text-sm font-semibold text-white">
-          {searchQuery ? `תוצאות חיפוש` : 'משימות'}
+          {searchQuery ? 'תוצאות חיפוש' : 'משימות'}
         </span>
         <IconBtn label="🧠" active={showSuggestions} accentColor={accentColor} onClick={fetchSuggestions} />
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex-shrink-0 flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
+        {([
+          { key: 'all',   label: `הכל (${activeTasks.length})` },
+          { key: 'high',  label: `🔥 דחוף (${tasks.filter(t=>t.status!=='done'&&t.priority==='high').length})` },
+          { key: 'today', label: `📅 היום (${tasks.filter(t=>t.status!=='done'&&t.reminder?.date===todayStr).length})` },
+          { key: 'done',  label: `✅ הושלמו (${tasks.filter(t=>t.status==='done').length})` },
+        ] as const).map(f => (
+          <button key={f.key} onClick={() => setFilter(f.key)}
+            className="flex-shrink-0 text-xs px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
+            style={filter === f.key
+              ? { background: accentColor, color: '#000', fontWeight: 700 }
+              : { background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}>
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {/* ── Scrollable content ── */}
@@ -180,13 +208,17 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
         )}
 
         {/* Empty state — flex-1 so it fills ALL remaining height */}
-        {filtered.length === 0 && (
+        {filteredActive.length === 0 && filteredDone.length === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center gap-5 pb-8">
-            {searchQuery ? (
+            {searchQuery || filter !== 'all' ? (
               <>
-                <span className="text-5xl">🔍</span>
-                <p className="text-gray-400 font-semibold">לא נמצאו תוצאות</p>
-                <p className="text-sm text-gray-600">נסה מילה אחרת</p>
+                <span className="text-5xl">{filter === 'done' ? '✅' : filter === 'high' ? '🔥' : filter === 'today' ? '📅' : '🔍'}</span>
+                <p className="text-gray-400 font-semibold">
+                  {filter === 'done' ? 'אין משימות שהושלמו' :
+                   filter === 'high' ? 'אין משימות דחופות' :
+                   filter === 'today' ? 'אין משימות להיום' :
+                   'לא נמצאו תוצאות'}
+                </p>
               </>
             ) : (
               <>
