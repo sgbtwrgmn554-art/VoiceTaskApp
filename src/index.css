@@ -10,15 +10,17 @@
 }
 
 body {
-  background-color: #000;
+  background-color: #0a0a0a;
   color: #fff;
   overflow: hidden;
   height: 100dvh;
+  min-height: -webkit-fill-available;
   margin: 0;
 }
 
 #root {
   height: 100dvh;
+  min-height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
   max-width: 480px;
