@@ -78,36 +78,21 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
 
       {/* Mic section */}
       <div
-        className="flex items-center justify-center gap-4 py-3 px-4"
-        style={{ opacity: visible ? 1 : 0, transform: visible ? 'none' : 'translateY(-10px)', transition: 'all 0.5s ease' }}
+        className="flex items-center justify-center py-2 px-4"
+        style={{ opacity: visible ? 1 : 0, transform: visible ? 'none' : 'translateY(-8px)', transition: 'all 0.4s ease' }}
       >
-        {/* Left waves */}
-        <div className="flex items-center gap-[4px]">
-          {[...Array(9)].map((_, i) => (
-            <div key={i} className="wave-bar rounded-full" style={{ background: accentColor + 'cc' }} />
-          ))}
-        </div>
-
-        {/* Mic button */}
         <button
           onClick={onNewRecording}
-          className="relative w-[72px] h-[72px] rounded-full flex items-center justify-center flex-shrink-0 transition-transform active:scale-90"
-          style={{ background: '#1a1a1a', boxShadow: `0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.6)` }}
+          className="relative w-[52px] h-[52px] rounded-full flex items-center justify-center flex-shrink-0 transition-transform active:scale-90"
+          style={{ background: '#1a1a1a', boxShadow: `0 0 0 1px rgba(255,255,255,0.08), 0 4px 16px rgba(0,0,0,0.5)` }}
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
             <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
           </svg>
         </button>
-
-        {/* Right waves */}
-        <div className="flex items-center gap-[4px]">
-          {[...Array(9)].map((_, i) => (
-            <div key={i} className="wave-bar rounded-full" style={{ background: accentColor + 'cc' }} />
-          ))}
-        </div>
       </div>
 
-      <p className="text-center text-xs text-gray-500 -mt-1 mb-4 tracking-wider">הקלטה חדשה</p>
+      <p className="text-center text-[11px] text-gray-600 -mt-0.5 mb-3 tracking-wider">הקלטה חדשה</p>
 
       {/* Tasks section */}
       <div className="flex-1 scroll-y px-4">
