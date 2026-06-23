@@ -32,6 +32,7 @@ const ACCENT_COLORS: Record<ThemeColor, string> = {
 
 export default function App() {
   const [tab, setTab] = useState<AppTab>('home');
+  const [tabKey, setTabKey] = useState(0);
   const [showNewRecording, setShowNewRecording] = useState(false);
   const [showJarvis, setShowJarvis] = useState(false);
   const [jarvisInitialQ, setJarvisInitialQ] = useState<string | undefined>();
@@ -75,6 +76,11 @@ export default function App() {
     localStorage.removeItem('vt_user');
     setUser(null);
   };
+
+  const switchTab = useCallback((t: AppTab) => {
+    setTab(t);
+    setTabKey(k => k + 1);
+  }, []);
 
   const { tasks, createTask, updateTask, deleteTask, markTaskDone, setReminder } = useTasks();
 
@@ -149,7 +155,7 @@ export default function App() {
               if (payload.kind === 'goal') {
                 createGoal(payload.title, payload.domainId as LifeDomainId, payload.description, payload.deadline);
                 setShowNewRecording(false);
-                setTab('goals');
+                switchTab('goals');
               } else {
                 createTask(payload.data);
                 setShowNewRecording(false);
@@ -169,7 +175,7 @@ export default function App() {
             domains={settings.customDomains}
           />
         ) : tab === 'home' ? (
-          <div key="home" className="h-full tab-in">
+          <div key={`home-${tabKey}`} className="h-full tab-in">
             <HomeScreen
               tasks={tasks}
               goals={goals}
@@ -184,7 +190,7 @@ export default function App() {
             />
           </div>
         ) : tab === 'chat' ? (
-          <div key="chat" className="h-full tab-in">
+          <div key={`chat-${tabKey}`} className="h-full tab-in">
             <AIChatScreen
               messages={messages}
               isLoading={isLoading}
@@ -194,11 +200,11 @@ export default function App() {
             />
           </div>
         ) : tab === 'calendar' ? (
-          <div key="calendar" className="h-full tab-in">
+          <div key={`calendar-${tabKey}`} className="h-full tab-in">
             <CalendarScreen tasks={tasks} habits={habits} habitLogs={habitLogs} accentColor={accentColor} />
           </div>
         ) : tab === 'habits' ? (
-          <div key="habits" className="h-full tab-in">
+          <div key={`habits-${tabKey}`} className="h-full tab-in">
             <HabitsScreen
               habits={habits}
               todayReflection={todayReflection}
@@ -213,7 +219,7 @@ export default function App() {
             />
           </div>
         ) : tab === 'goals' ? (
-          <div key="goals" className="h-full tab-in">
+          <div key={`goals-${tabKey}`} className="h-full tab-in">
             <GoalsScreen
               goals={goals}
               domains={settings.customDomains}
@@ -230,7 +236,7 @@ export default function App() {
             />
           </div>
         ) : (
-          <div key="profile" className="h-full tab-in">
+          <div key={`profile-${tabKey}`} className="h-full tab-in">
             <ProfileScreen
               settings={settings}
               accentColor={accentColor}
@@ -294,7 +300,7 @@ export default function App() {
           onUpdateGoalWhy={(id, why) => updateGoal(id, { why })}
           onAddReflection={addReflection}
           onAddDesire={addDesire}
-          onNavigate={(t) => { setTab(t as AppTab); setShowJarvis(false); }}
+          onNavigate={(t) => { switchTab(t as AppTab); setShowJarvis(false); }}
         />
       )}
 
@@ -309,11 +315,11 @@ export default function App() {
                paddingBottom: 'env(safe-area-inset-bottom, 10px)',
                paddingTop: '10px',
              }}>
-          <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => setTab('profile')}  accentColor={accentColor} />
-          <NavBtn icon={<HabitsIcon />}   label="הרגלים"   active={tab === 'habits'}   onClick={() => setTab('habits')}   accentColor={accentColor} />
+          <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => switchTab('profile')}  accentColor={accentColor} />
+          <NavBtn icon={<HabitsIcon />}   label="הרגלים"   active={tab === 'habits'}   onClick={() => switchTab('habits')}   accentColor={accentColor} />
 
           {/* Center home button */}
-          <button onClick={() => setTab('home')} className="flex flex-col items-center -mt-6 transition-transform active:scale-90">
+          <button onClick={() => switchTab('home')} className="flex flex-col items-center -mt-6 transition-transform active:scale-90">
             <div className="w-[58px] h-[58px] rounded-full flex items-center justify-center transition-all"
                  style={{
                    background: tab === 'home' ? '#fff' : '#1a1a1a',
@@ -325,8 +331,8 @@ export default function App() {
             </div>
           </button>
 
-          <NavBtn icon={<GoalsIcon />}    label="יעדים"    active={tab === 'goals'}    onClick={() => setTab('goals')}    accentColor={accentColor} />
-          <NavBtn icon={<ChatIcon />}     label="AI"       active={tab === 'chat'}     onClick={() => setTab('chat')}     accentColor={accentColor} />
+          <NavBtn icon={<GoalsIcon />}    label="יעדים"    active={tab === 'goals'}    onClick={() => switchTab('goals')}    accentColor={accentColor} />
+          <NavBtn icon={<ChatIcon />}     label="AI"       active={tab === 'chat'}     onClick={() => switchTab('chat')}     accentColor={accentColor} />
         </nav>
       )}
     </div>
