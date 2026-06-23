@@ -143,7 +143,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col text-white" style={{ flex: 1, background: '#0a0a0a', '--accent': accentColor } as React.CSSProperties}>
+    <div className="flex flex-col app-launch text-white" style={{ flex: 1, background: '#0a0a0a', '--accent': accentColor } as React.CSSProperties}>
 
       {/* Screens */}
       <div className="flex-1 overflow-hidden relative">
@@ -310,7 +310,7 @@ export default function App() {
              style={{
                background: '#0a0a0a',
                borderTop: '1px solid rgba(255,255,255,0.07)',
-               paddingBottom: 'env(safe-area-inset-bottom, 16px)',
+               paddingBottom: 'env(safe-area-inset-bottom, 34px)',
                paddingTop: '10px',
              }}>
           <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => switchTab('profile')}  accentColor={accentColor} />
