@@ -83,7 +83,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
   };
 
   return (
-    <div className="flex flex-col h-full relative" style={{ background: '#0a0a0a' }}>
+    <div className="flex flex-col h-full" style={{ background: '#0a0a0a' }}>
 
       {/* ── HERO CARD — colored gradient top ── */}
       <div
@@ -283,29 +283,27 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
             </>
           )}
 
-          <div className="h-20" />
+          <div className="h-4" />
         </div>
       </div>
 
-      {/* ── FAB — floating action button ── */}
-      <button
-        onClick={onNewRecording}
-        className="absolute flex items-center gap-2.5 rounded-full font-bold text-sm transition-all active:scale-95"
-        style={{
-          bottom: '12px',
-          right: '16px',
-          background: accentColor,
-          color: '#000',
-          padding: '14px 22px',
-          boxShadow: `0 6px 28px ${accentColor}70`,
-          zIndex: 30,
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="black">
-          <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
-        </svg>
-        + הוסף
-      </button>
+      {/* ── Bottom action bar — always pinned to bottom ── */}
+      <div className="flex-shrink-0 px-4 pb-4 pt-2">
+        <button
+          onClick={onNewRecording}
+          className="w-full flex items-center justify-center gap-2.5 rounded-2xl font-bold text-base py-4 transition-all active:scale-[0.98]"
+          style={{
+            background: accentColor,
+            color: '#000',
+            boxShadow: `0 6px 28px ${accentColor}60`,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="black">
+            <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+          </svg>
+          + הוסף משימה
+        </button>
+      </div>
 
       {editingTask && (
         <EditTaskModal
