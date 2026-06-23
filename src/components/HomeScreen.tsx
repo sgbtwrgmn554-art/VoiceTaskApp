@@ -169,9 +169,9 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
 
         {filtered.length === 0 && (
           <div className="text-center mt-14 fade-up">
-            <div className="text-5xl mb-3">{searchQuery ? '🔍' : '🎯'}</div>
-            <p className="text-gray-400 font-medium">{searchQuery ? 'לא נמצאו תוצאות' : 'אין משימות עדיין'}</p>
-            <p className="text-sm text-gray-600 mt-1">{searchQuery ? '' : 'לחץ על המיקרופון להוספה'}</p>
+            <div className="text-5xl mb-3 card-appear">{searchQuery ? '🔍' : '🎯'}</div>
+            <p className="text-gray-400 font-semibold text-base">{searchQuery ? 'לא נמצאו תוצאות' : 'אין משימות עדיין'}</p>
+            <p className="text-sm text-gray-600 mt-1.5">{searchQuery ? 'נסה מילה אחרת' : 'לחץ + למעלה או על המיקרופון להוספה'}</p>
           </div>
         )}
 
@@ -261,8 +261,8 @@ function MatrixCard({ task, index, onDone, onDelete, accentColor }: {
   const priorityColor = task.priority === 'high' ? '#ef4444' : task.priority === 'medium' ? '#f59e0b' : '#6b7280';
   return (
     <div
-      className="rounded-2xl p-3 fade-up flex flex-col gap-2"
-      style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.07)', animationDelay: `${index * 0.04}s` }}
+      className="rounded-2xl p-3 stagger-item flex flex-col gap-2"
+      style={{ background: '#161616', border: '1px solid rgba(255,255,255,0.07)' }}
     >
       <div className="flex items-start justify-between gap-1">
         <p className="text-sm font-medium text-white leading-snug line-clamp-2 flex-1">{task.title}</p>
@@ -298,8 +298,8 @@ function TaskRow({ task, index, done, onDone, onDelete, onEdit, menuOpen, onMenu
 }) {
   return (
     <div
-      className="flex items-center gap-3 py-3.5 border-b fade-up relative"
-      style={{ borderColor: 'rgba(255,255,255,0.06)', animationDelay: `${index * 0.04}s` }}
+      className="flex items-center gap-3 py-3.5 border-b stagger-item relative"
+      style={{ borderColor: 'rgba(255,255,255,0.06)' }}
     >
       {/* 3-dot */}
       <button onClick={onMenuToggle} className="flex-shrink-0 opacity-40 hover:opacity-70 transition-opacity">

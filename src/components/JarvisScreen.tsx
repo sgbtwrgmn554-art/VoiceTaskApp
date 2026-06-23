@@ -583,7 +583,7 @@ export default function JarvisScreen({
       ) : (
         <>
           {/* Orb */}
-          <div className="flex-shrink-0 flex items-center justify-center py-6">
+          <div className="flex-shrink-0 flex items-center justify-center py-6 card-appear">
             <div className="relative">
               {(state === 'listening' || state === 'speaking' || state === 'confirming') && (
                 <>
@@ -780,16 +780,29 @@ export default function JarvisScreen({
 
             {/* Chat messages */}
             {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+              <div
+                key={i}
+                className={`flex fade-up ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}
+                style={{ animationDelay: `${Math.min(i * 0.04, 0.2)}s` }}
+              >
                 <div
-                  className="max-w-[82%] rounded-2xl px-4 py-2.5 text-sm"
+                  className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed"
                   style={m.role === 'jarvis'
                     ? { background: accentColor + '18', border: `1px solid ${accentColor}30`, color: '#e5e7eb' }
                     : { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: '#9ca3af' }
                   }
                 >
-                  {m.role === 'jarvis' && <p className="text-[10px] mb-1 opacity-50" style={{ color: accentColor }}>JARVIS</p>}
-                  {m.text}
+                  {m.role === 'jarvis' && <p className="text-[10px] mb-1.5 opacity-50 tracking-wider font-semibold" style={{ color: accentColor }}>J.A.R.V.I.S</p>}
+                  {m.text.split('\n\n').map((para, pi) => (
+                    <p key={pi} className={pi > 0 ? 'mt-2' : ''}>
+                      {para.split('\n').map((line, li) => (
+                        <React.Fragment key={li}>
+                          {li > 0 && <br />}
+                          {line}
+                        </React.Fragment>
+                      ))}
+                    </p>
+                  ))}
                 </div>
               </div>
             ))}

@@ -5,7 +5,11 @@ import AppLinkInput, { LinkBadge } from './AppLinkInput';
 
 const DAYS_HE = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
 const MOODS = ['😔', '😐', '🙂', '😊', '🤩'];
-const DEFAULT_EMOJIS = ['💪', '📚', '🏃', '🧘', '💧', '🥗', '😴', '✍️', '🎯', '🎨', '🎸', '💻'];
+const DEFAULT_EMOJIS = [
+  '💪','📚','🏃','🧘','💧','🥗','😴','✍️','🎯','🎨','🎸','💻',
+  '🏋️','🚴','🧠','🌅','🥤','🍎','🧹','💊','📝','🎓','🌿','⚽',
+  '🚶','🛌','🎵','🔑','💰','🙏','👁️','🌊',
+];
 const DEFAULT_COLORS = ['#22c55e', '#3b82f6', '#a855f7', '#f97316', '#ec4899', '#14b8a6', '#ef4444', '#eab308'];
 
 interface Props {
@@ -90,7 +94,11 @@ export default function HabitsScreen({
                 >
                   {isCelebrating && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-3xl scale-pop">✨</span>
+                      <div className="relative w-12 h-12">
+                        <div className="absolute inset-0 rounded-full celeb-ring" style={{ border: `2px solid ${h.color}` }} />
+                        <div className="absolute inset-0 rounded-full celeb-ring" style={{ border: `2px solid ${h.color}99`, animationDelay: '0.1s' }} />
+                        <span className="absolute inset-0 flex items-center justify-center text-2xl scale-pop">✅</span>
+                      </div>
                     </div>
                   )}
                   {/* Emoji */}
