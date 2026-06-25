@@ -37,7 +37,7 @@ export default function App() {
   const [showJarvis, setShowJarvis] = useState(false);
   const [jarvisInitialQ, setJarvisInitialQ] = useState<string | undefined>();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [user, setUser] = useState<{ email: string } | null>(() => {
+  const [user, setUser] = useState<{ email: string; name?: string } | null>(() => {
     const saved = localStorage.getItem('vt_user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -55,17 +55,22 @@ export default function App() {
     removeShortcut,
   } = useSettings();
 
-  const handleAuth = async (email: string, _password: string, _isRegister: boolean) => {
-    const u = { email };
+  const handleAuth = async (email: string, _password: string, _isRegister: boolean, name?: string) => {
+    const u = { email, name };
     localStorage.setItem('vt_user', JSON.stringify(u));
     setUser(u);
-    // Show onboarding for new users
     if (!localStorage.getItem('vt_onboarding_done')) {
       setShowOnboarding(true);
     }
   };
 
-  // Check onboarding on mount for existing users
+  const handleUpdateName = (name: string) => {
+    if (!user) return;
+    const u = { ...user, name };
+    localStorage.setItem('vt_user', JSON.stringify(u));
+    setUser(u);
+  };
+
   useEffect(() => {
     if (user && !localStorage.getItem('vt_onboarding_done')) {
       setShowOnboarding(true);
@@ -145,7 +150,6 @@ export default function App() {
   return (
     <div className="flex flex-col app-launch text-white" style={{ flex: 1, background: '#0a0a0a', '--accent': accentColor } as React.CSSProperties}>
 
-      {/* Screens */}
       <div className="flex-1 overflow-hidden relative">
         {showNewRecording ? (
           <NewRecordingScreen
@@ -181,6 +185,7 @@ export default function App() {
               goals={goals}
               habits={habits}
               aiLanguage={settings.aiLanguage}
+              userName={user?.name}
               onNewRecording={() => setShowNewRecording(true)}
               onOpenJarvis={() => setShowJarvis(true)}
               onUpdateTask={(id, data) => updateTask({ id, ...data })}
@@ -260,12 +265,13 @@ export default function App() {
                 localStorage.removeItem('vt_onboarding_done');
                 setShowOnboarding(true);
               }}
+              userName={user?.name}
+              onUpdateName={handleUpdateName}
             />
           </div>
         )}
       </div>
 
-      {/* JARVIS overlay */}
       {showJarvis && (
         <JarvisScreen
           tasks={tasks}
@@ -304,7 +310,6 @@ export default function App() {
         />
       )}
 
-      {/* Bottom Navigation */}
       {!showNewRecording && (
         <nav className="flex-shrink-0 flex items-end justify-around"
              style={{
@@ -316,7 +321,6 @@ export default function App() {
           <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => switchTab('profile')}  accentColor={accentColor} />
           <NavBtn icon={<HabitsIcon />}   label="הרגלים"   active={tab === 'habits'}   onClick={() => switchTab('habits')}   accentColor={accentColor} />
 
-          {/* Center home button */}
           <button onClick={() => switchTab('home')} className="flex flex-col items-center -mt-6 transition-transform active:scale-90">
             <div className="w-[58px] h-[58px] rounded-full flex items-center justify-center transition-all"
                  style={{
@@ -333,7 +337,6 @@ export default function App() {
           <NavBtn icon={<ChatIcon />}     label="AI"       active={tab === 'chat'}     onClick={() => switchTab('chat')}     accentColor={accentColor} />
         </nav>
       )}
-      {/* Safe area fill — covers iOS home indicator zone below nav bar */}
       <div style={{ flexShrink: 0, height: 'env(safe-area-inset-bottom, 0px)', background: '#0a0a0a' }} />
     </div>
   );
