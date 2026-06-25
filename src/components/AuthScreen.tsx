@@ -1,23 +1,28 @@
 import React, { useState } from 'react';
 
 interface Props {
-  onAuth: (email: string, password: string, isRegister: boolean) => Promise<void>;
+  onAuth: (email: string, password: string, isRegister: boolean, name?: string) => Promise<void>;
 }
 
 export default function AuthScreen({ onAuth }: Props) {
   const [isRegister, setIsRegister] = useState(true);
+  const [name, setName]             = useState('');
   const [email, setEmail]           = useState('');
   const [password, setPassword]     = useState('');
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
 
   const handleSubmit = async () => {
+    if (isRegister && !name.trim()) { setError('יש למלא שם'); return; }
     if (!email.trim() || !password.trim()) { setError('יש למלא אימייל וסיסמה'); return; }
     setError(''); setLoading(true);
-    try { await onAuth(email.trim(), password, isRegister); }
+    try { await onAuth(email.trim(), password, isRegister, name.trim() || undefined); }
     catch (e: any) { setError(e.message || 'שגיאה, נסה שוב'); }
     finally { setLoading(false); }
   };
+
+  const inputStyle = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', fontSize: '16px' };
+  const inputClass = 'w-full text-white rounded-2xl px-4 py-3.5 mb-3 outline-none text-center';
 
   return (
     <div className="flex items-center justify-center h-full px-6" style={{ background: '#050508' }}>
@@ -43,17 +48,26 @@ export default function AuthScreen({ onAuth }: Props) {
           </div>
         )}
 
-        {/* Inputs */}
+        {/* Name (registration only) */}
+        {isRegister && (
+          <input type="text" value={name} onChange={e => setName(e.target.value)}
+            placeholder="שם" dir="rtl"
+            className={inputClass}
+            style={inputStyle} />
+        )}
+
+        {/* Email */}
         <input type="email" value={email} onChange={e => setEmail(e.target.value)}
           placeholder="אימייל" dir="ltr"
-          className="w-full text-white text-sm rounded-2xl px-4 py-3.5 mb-3 outline-none text-center"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }} />
+          className={inputClass}
+          style={inputStyle} />
 
+        {/* Password */}
         <input type="password" value={password} onChange={e => setPassword(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
           placeholder="סיסמה" dir="ltr"
-          className="w-full text-white text-sm rounded-2xl px-4 py-3.5 mb-5 outline-none text-center"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }} />
+          className={`${inputClass} mb-5`}
+          style={inputStyle} />
 
         {/* Submit */}
         <button onClick={handleSubmit} disabled={loading}

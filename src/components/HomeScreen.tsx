@@ -8,6 +8,7 @@ interface Props {
   goals?: Goal[];
   habits?: Habit[];
   aiLanguage?: string;
+  userName?: string;
   onNewRecording: () => void;
   onOpenJarvis?: () => void;
   onUpdateTask: (id: string, data: Partial<Task>) => void;
@@ -28,7 +29,7 @@ function getGreeting() {
   return 'לילה טוב';
 }
 
-export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage = 'hebrew', onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
+export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage = 'hebrew', userName, onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
   const [menuOpen, setMenuOpen]     = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [visible, setVisible]       = useState(false);
@@ -134,7 +135,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
         </div>
 
         {/* Greeting */}
-        <h1 className="text-[32px] font-black text-white leading-tight tracking-tight">{greeting} 👋</h1>
+        <h1 className="text-[32px] font-black text-white leading-tight tracking-tight">{greeting}{userName ? `, ${userName}` : ''} 👋</h1>
         <p className="text-sm mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
           {activeTasks.length > 0 ? `יש לך ${activeTasks.length} משימות פעילות` : 'כל המשימות הושלמו 🎉'}
         </p>

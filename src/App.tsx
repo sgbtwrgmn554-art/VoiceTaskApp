@@ -37,7 +37,7 @@ export default function App() {
   const [showJarvis, setShowJarvis] = useState(false);
   const [jarvisInitialQ, setJarvisInitialQ] = useState<string | undefined>();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [user, setUser] = useState<{ email: string } | null>(() => {
+  const [user, setUser] = useState<{ email: string; name?: string } | null>(() => {
     const saved = localStorage.getItem('vt_user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -55,14 +55,20 @@ export default function App() {
     removeShortcut,
   } = useSettings();
 
-  const handleAuth = async (email: string, _password: string, _isRegister: boolean) => {
-    const u = { email };
+  const handleAuth = async (email: string, _password: string, _isRegister: boolean, name?: string) => {
+    const u = { email, name };
     localStorage.setItem('vt_user', JSON.stringify(u));
     setUser(u);
-    // Show onboarding for new users
     if (!localStorage.getItem('vt_onboarding_done')) {
       setShowOnboarding(true);
     }
+  };
+
+  const handleUpdateName = (name: string) => {
+    if (!user) return;
+    const u = { ...user, name };
+    localStorage.setItem('vt_user', JSON.stringify(u));
+    setUser(u);
   };
 
   // Check onboarding on mount for existing users
@@ -181,6 +187,7 @@ export default function App() {
               goals={goals}
               habits={habits}
               aiLanguage={settings.aiLanguage}
+              userName={user?.name}
               onNewRecording={() => setShowNewRecording(true)}
               onOpenJarvis={() => setShowJarvis(true)}
               onUpdateTask={(id, data) => updateTask({ id, ...data })}
@@ -260,6 +267,8 @@ export default function App() {
                 localStorage.removeItem('vt_onboarding_done');
                 setShowOnboarding(true);
               }}
+              userName={user?.name}
+              onUpdateName={handleUpdateName}
             />
           </div>
         )}
