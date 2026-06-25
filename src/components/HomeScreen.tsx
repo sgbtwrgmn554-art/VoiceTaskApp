@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task, Goal, Habit } from '../types';
+import { Task, Goal, Habit, HabitLog } from '../types';
 import { LinkBadge } from './AppLinkInput';
 import AppLinkInput from './AppLinkInput';
 
@@ -7,6 +7,7 @@ interface Props {
   tasks: Task[];
   goals?: Goal[];
   habits?: Habit[];
+  habitLogs?: HabitLog[];
   aiLanguage?: string;
   userName?: string;
   onNewRecording: () => void;
@@ -29,7 +30,7 @@ function getGreeting() {
   return 'לילה טוב';
 }
 
-export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage = 'hebrew', userName, onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
+export default function HomeScreen({ tasks, goals = [], habits = [], habitLogs = [], aiLanguage = 'hebrew', userName, onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
   const [menuOpen, setMenuOpen]     = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [visible, setVisible]       = useState(false);
@@ -51,6 +52,9 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
   const activeTasks  = tasks.filter(t => t.status !== 'done');
   const activeGoals  = goals.filter(g => g.status !== 'completed').length;
   const todayStr     = new Date().toISOString().split('T')[0];
+  const habitsDoneToday = new Set(
+    habitLogs.filter(l => l.date === todayStr).map(l => l.habitId)
+  );
 
   const bySearch = searchQuery.trim()
     ? tasks.filter(t => t.title.includes(searchQuery) || t.description?.includes(searchQuery))
@@ -158,8 +162,18 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
         {/* Stat cards */}
         <div className="flex gap-3 mt-5">
           <StatCard icon="✅" value={activeTasks.length} label="משימות" color={accentColor} />
-          <StatCard icon="🎯" value={activeGoals}         label="יעדים"   color="#a78bfa" />
-          <StatCard icon="🔥" value={habits.length}       label="הרגלים"  color="#f97316" />
+          <RingCard
+            value={habits.filter(h => habitsDoneToday.has(h.id)).length}
+            total={habits.length}
+            label="הרגלים"
+            color="#f97316"
+          />
+          <RingCard
+            value={goals.filter(g => g.status !== 'completed' && g.milestones?.some(m => m.completed)).length}
+            total={Math.max(1, goals.filter(g => g.status !== 'completed').length)}
+            label="יעדים"
+            color="#a78bfa"
+          />
         </div>
       </div>
 
@@ -327,6 +341,29 @@ function StatCard({ icon, value, label, color }: { icon: string; value: number; 
     >
       <span className="text-2xl">{icon}</span>
       <span className="text-xl font-bold leading-none" style={{ color }}>{value}</span>
+      <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</span>
+    </div>
+  );
+}
+
+function RingCard({ value, total, label, color }: { value: number; total: number; label: string; color: string }) {
+  const r = 18;
+  const circ = 2 * Math.PI * r;
+  const pct = total > 0 ? Math.min(1, value / total) : 0;
+  const dash = pct * circ;
+  return (
+    <div
+      className="flex-1 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 stat-pop"
+      style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}
+    >
+      <svg width="44" height="44" viewBox="0 0 44 44" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="22" cy="22" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
+        <circle cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="4"
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray 0.6s var(--spring)' }} />
+        <text x="22" y="26" textAnchor="middle" fill="white" fontSize="11" fontWeight="700"
+          style={{ transform: 'rotate(90deg)', transformOrigin: '22px 22px' }}>{value}</text>
+      </svg>
       <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</span>
     </div>
   );

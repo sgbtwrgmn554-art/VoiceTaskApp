@@ -149,7 +149,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col app-launch text-white" style={{ flex: 1, background: '#0a0a0a', '--accent': accentColor } as React.CSSProperties}>
+    <div className="flex flex-col app-launch text-white" style={{ flex: 1, background: 'var(--bg-primary)', '--accent': accentColor } as React.CSSProperties}>
 
       {/* Screens */}
       <div className="flex-1 overflow-hidden relative">
@@ -186,6 +186,7 @@ export default function App() {
               tasks={tasks}
               goals={goals}
               habits={habits}
+              habitLogs={habitLogs}
               aiLanguage={settings.aiLanguage}
               userName={user?.name}
               onNewRecording={() => setShowNewRecording(true)}
@@ -208,7 +209,7 @@ export default function App() {
           </div>
         ) : tab === 'calendar' ? (
           <div key={`calendar-${tabKey}`} className="h-full tab-in">
-            <CalendarScreen tasks={tasks} habits={habits} habitLogs={habitLogs} accentColor={accentColor} />
+            <CalendarScreen tasks={tasks} habits={habits} habitLogs={habitLogs} accentColor={accentColor} onCreateTask={(input) => { createTask(input); }} />
           </div>
         ) : tab === 'habits' ? (
           <div key={`habits-${tabKey}`} className="h-full tab-in">
@@ -315,35 +316,23 @@ export default function App() {
 
       {/* Bottom Navigation */}
       {!showNewRecording && (
-        <nav className="flex-shrink-0 flex items-end justify-around"
+        <nav className="flex-shrink-0 flex items-end"
              style={{
-               background: '#0a0a0a',
-               borderTop: '1px solid rgba(255,255,255,0.07)',
+               background: 'var(--bg-primary)',
+               borderTop: '1px solid var(--separator)',
                paddingBottom: '4px',
                paddingTop: '10px',
              }}>
           <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => switchTab('profile')}  accentColor={accentColor} />
           <NavBtn icon={<HabitsIcon />}   label="הרגלים"   active={tab === 'habits'}   onClick={() => switchTab('habits')}   accentColor={accentColor} />
-
-          {/* Center home button */}
-          <button onClick={() => switchTab('home')} className="flex flex-col items-center -mt-6 transition-transform active:scale-90">
-            <div className="w-[58px] h-[58px] rounded-full flex items-center justify-center transition-all"
-                 style={{
-                   background: tab === 'home' ? '#fff' : '#1a1a1a',
-                   boxShadow: tab === 'home'
-                     ? '0 4px 20px rgba(255,255,255,0.25)'
-                     : '0 0 0 1px rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.6)',
-                 }}>
-              <HomeIcon color={tab === 'home' ? '#000' : '#fff'} />
-            </div>
-          </button>
-
+          <NavBtn icon={<HomeIcon color="currentColor" />} label="בית" active={tab === 'home'} onClick={() => switchTab('home')} accentColor={accentColor} />
+          <NavBtn icon={<CalendarIcon />} label="יומן"     active={tab === 'calendar'} onClick={() => switchTab('calendar')} accentColor={accentColor} />
           <NavBtn icon={<GoalsIcon />}    label="יעדים"    active={tab === 'goals'}    onClick={() => switchTab('goals')}    accentColor={accentColor} />
           <NavBtn icon={<ChatIcon />}     label="AI"       active={tab === 'chat'}     onClick={() => switchTab('chat')}     accentColor={accentColor} />
         </nav>
       )}
       {/* Safe area fill — covers iOS home indicator zone below nav bar */}
-      <div style={{ flexShrink: 0, height: 'env(safe-area-inset-bottom, 0px)', background: '#0a0a0a' }} />
+      <div style={{ flexShrink: 0, height: 'env(safe-area-inset-bottom, 0px)', background: 'var(--bg-primary)' }} />
     </div>
   );
 }
@@ -353,22 +342,22 @@ function NavBtn({ icon, label, active, onClick, accentColor }: {
 }) {
   return (
     <button onClick={onClick}
-      className="flex flex-col items-center gap-1 px-2 py-0.5 min-w-[52px] transition-transform active:scale-90">
+      className="flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-transform active:scale-90">
       <span
-        className="w-12 h-8 flex items-center justify-center rounded-xl transition-all duration-200"
+        className="w-10 h-7 flex items-center justify-center rounded-xl transition-all duration-200"
         style={{
           background: active ? accentColor + '22' : 'transparent',
-          color: active ? accentColor : '#4b5563',
+          color: active ? accentColor : 'var(--text-tertiary)',
         }}
       >{icon}</span>
-      <span className="text-[10px] font-medium" style={{ color: active ? accentColor : '#4b5563' }}>{label}</span>
+      <span className="text-[9px] font-medium" style={{ color: active ? accentColor : 'var(--text-tertiary)' }}>{label}</span>
     </button>
   );
 }
 
-function HomeIcon({ color }: { color: string }) {
+function HomeIcon({ color = 'currentColor' }: { color?: string }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={color}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={color}>
       <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
     </svg>
   );
