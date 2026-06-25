@@ -20,6 +20,8 @@ interface Props {
   onThemeChange: (t: ThemeColor) => void;
   onLogout: () => void;
   onOpenGuide?: () => void;
+  userName?: string;
+  onUpdateName?: (name: string) => void;
   onAddShortcut: (sc: Omit<VoiceShortcut, 'id'>) => void;
   onRemoveShortcut: (id: string) => void;
 }
@@ -145,7 +147,6 @@ function StatsSection({ tasks = [], habits = [], habitLogs = [], goals = [], ref
     ? (weekReflections.reduce((s, r) => s + r.mood, 0) / weekReflections.length).toFixed(1)
     : null;
 
-  // 7-day task completion bar chart
   const days: { label: string; count: number }[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
@@ -157,7 +158,6 @@ function StatsSection({ tasks = [], habits = [], habitLogs = [], goals = [], ref
   }
   const maxCount = Math.max(...days.map(d => d.count), 1);
 
-  // Habit streaks
   const topHabits = habits.slice(0, 3).map(h => {
     const logs7 = habitLogs.filter(l => l.habitId === h.id && l.date >= weekAgoStr);
     return { emoji: h.emoji, title: h.title, done: logs7.length };
@@ -182,7 +182,6 @@ function StatsSection({ tasks = [], habits = [], habitLogs = [], goals = [], ref
         ))}
       </div>
 
-      {/* 7-day bar chart */}
       <div className="rounded-2xl px-4 py-3.5 mb-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
         <p className="text-[11px] text-gray-500 mb-3">משימות לפי יום (7 ימים)</p>
         <div className="flex items-end justify-between gap-1 h-12">
@@ -201,7 +200,6 @@ function StatsSection({ tasks = [], habits = [], habitLogs = [], goals = [], ref
         </div>
       </div>
 
-      {/* Habit summary */}
       {topHabits.length > 0 && (
         <div className="rounded-2xl px-4 py-3.5 mb-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <p className="text-[11px] text-gray-500 mb-2">הרגלים השבוע</p>
@@ -232,7 +230,10 @@ export default function ProfileScreen({
   onAddDomain, onUpdateDomain, onRemoveDomain,
   onThemeChange, onLogout, onOpenGuide,
   onAddShortcut, onRemoveShortcut,
+  userName, onUpdateName,
 }: Props) {
+  const [editingName, setEditingName]     = useState(false);
+  const [nameVal, setNameVal]             = useState(userName || '');
   const [newCat, setNewCat]               = useState('');
   const [editingCat, setEditingCat]       = useState<string | null>(null);
   const [editCatVal, setEditCatVal]       = useState('');
@@ -282,6 +283,35 @@ export default function ProfileScreen({
           <p className="text-xs text-gray-500 mt-0.5">התאם את האפליקציה לעצמך</p>
         </div>
 
+        {/* ── PROFILE NAME ── */}
+        <Card>
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+            <span className="text-sm text-gray-400">שם</span>
+            {editingName ? (
+              <input
+                autoFocus
+                value={nameVal}
+                onChange={e => setNameVal(e.target.value)}
+                onBlur={() => { if (nameVal.trim()) onUpdateName?.(nameVal.trim()); setEditingName(false); }}
+                onKeyDown={e => { if (e.key === 'Enter') { if (nameVal.trim()) onUpdateName?.(nameVal.trim()); setEditingName(false); } }}
+                className="bg-transparent outline-none text-white text-sm font-medium text-left flex-1"
+                style={{ fontSize: '16px', textAlign: 'right' }}
+                dir="rtl"
+                placeholder="הכנס שם..."
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-white">{userName || '—'}</span>
+                <button onClick={() => { setNameVal(userName || ''); setEditingName(true); }}
+                  className="text-xs px-3 py-1 rounded-full"
+                  style={{ background: accentColor + '22', color: accentColor }}>
+                  ערוך
+                </button>
+              </div>
+            )}
+          </div>
+        </Card>
+
         <StatsSection
           tasks={tasks} habits={habits} habitLogs={habitLogs}
           goals={goals} reflections={reflections} accentColor={accentColor}
@@ -306,7 +336,6 @@ export default function ProfileScreen({
               </button>
             </div>
 
-            {/* Category chips */}
             <div className="flex flex-wrap gap-2 mb-3">
               {settings.customCategories.map(cat => (
                 <div key={cat} className="flex items-center">
@@ -347,7 +376,6 @@ export default function ProfileScreen({
                 </div>
               ))}
 
-              {/* Inline add chip */}
               {catEditMode && (
                 <div className="flex items-center gap-1.5">
                   <input
@@ -458,7 +486,6 @@ export default function ProfileScreen({
             <div className="space-y-2">
               {settings.customDomains.map(domain => (
                 <div key={domain.id} className="flex items-center gap-2">
-                  {/* Emoji picker */}
                   <button
                     onClick={() => setShowEmojiPicker(showEmojiPicker === domain.id ? null : domain.id)}
                     className="text-xl w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -466,7 +493,6 @@ export default function ProfileScreen({
                     {domain.emoji}
                   </button>
 
-                  {/* Color dot */}
                   <div className="relative flex-shrink-0">
                     <button
                       className="w-5 h-5 rounded-full border-2 border-transparent"
@@ -475,7 +501,6 @@ export default function ProfileScreen({
                     />
                   </div>
 
-                  {/* Label */}
                   {editingDomain === domain.id ? (
                     <input
                       autoFocus
@@ -512,7 +537,6 @@ export default function ProfileScreen({
                     ×
                   </button>
 
-                  {/* Emoji grid */}
                   {showEmojiPicker === domain.id && (
                     <div
                       className="absolute right-4 left-4 z-10 rounded-2xl p-3 grid grid-cols-8 gap-2 mt-1"
@@ -526,7 +550,6 @@ export default function ProfileScreen({
                           {em}
                         </button>
                       ))}
-                      {/* Color picker row */}
                       <div className="col-span-8 flex flex-wrap gap-2 mt-1 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                         {DOMAIN_COLORS.map(c => (
                           <button
@@ -543,7 +566,6 @@ export default function ProfileScreen({
               ))}
             </div>
 
-            {/* Add domain */}
             {showAddDomain ? (
               <div className="mt-3 pt-3 border-t space-y-2" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
                 <div className="flex gap-2">
@@ -904,7 +926,6 @@ export default function ProfileScreen({
           </div>
         </Card>
 
-        {/* Version footer */}
         <p className="text-center text-[11px] text-gray-700 mt-6 mb-2">VoiceTask Personal Life OS v2.0</p>
 
       </div>
