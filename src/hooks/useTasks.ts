@@ -66,6 +66,11 @@ export function useTasks() {
     const task = tasks.find(t => t.id === id);
     if (!task) return null;
     const now = new Date().toISOString();
+    if (task.status === 'done') {
+      const toggled: Task = { ...task, status: 'todo', updatedAt: now };
+      persist(tasks.map(t => t.id === id ? toggled : t));
+      return toggled;
+    }
     const doneTask: Task = { ...task, status: 'done', updatedAt: now };
     let next = tasks.map(t => t.id === id ? doneTask : t);
     if (task.recurrence && task.recurrence !== 'none') {

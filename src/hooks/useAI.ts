@@ -19,6 +19,17 @@ interface ToolHandlers {
   aiStyle?: 'brief' | 'detailed';
 }
 
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*(.*?)\*\*/gs, '$1')
+    .replace(/\*(.*?)\*/gs, '$1')
+    .replace(/`{1,3}(.*?)`{1,3}/gs, '$1')
+    .replace(/^\s*[-*+]\s+/gm, '• ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function useAI(handlers: ToolHandlers) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadChat());
   const [isLoading, setIsLoading] = useState(false);
@@ -110,10 +121,9 @@ export function useAI(handlers: ToolHandlers) {
         throw new Error(err.error || `HTTP ${response.status}`);
       }
 
-      const { assistantText, toolActions } = await response.json() as {
-        assistantText: string;
-        toolActions: ToolAction[];
-      };
+      const raw = await response.json() as { assistantText: string; toolActions: ToolAction[] };
+      const assistantText = stripMarkdown(raw.assistantText);
+      const { toolActions } = raw;
 
       // Apply mutations to local state
       for (const action of toolActions) {

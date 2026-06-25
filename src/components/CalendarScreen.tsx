@@ -1,41 +1,223 @@
-import React, { useState, useEffect } from 'react';
-import { Task, Habit, HabitLog } from '../types';
-import { LinkBadge } from './AppLinkInput';
+import React, { useState, useRef } from 'react';
+import { Task, Habit, HabitLog, CreateTaskInput } from '../types';
 
 interface Props {
   tasks: Task[];
   habits: Habit[];
   habitLogs: HabitLog[];
   accentColor: string;
+  onCreateTask: (input: CreateTaskInput) => void;
 }
 
-const DAYS_HE  = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
-const MONTHS_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const DAYS_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+const MONTHS_HE  = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const HOURS      = Array.from({ length: 18 }, (_, i) => i + 6); // 06–23
 
-function timeToMin(t: string): number {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+const CATEGORY_COLORS = ['#f97316','#22c55e','#a855f7','#3b82f6','#ec4899','#14b8a6','#ef4444','#eab308'];
+
+function buildCategoryColors(tasks: Task[]): Map<string, string> {
+  const map = new Map<string, string>();
+  let idx = 0;
+  tasks.forEach(t => {
+    const cat = t.category || '';
+    if (cat && !map.has(cat)) map.set(cat, CATEGORY_COLORS[idx++ % CATEGORY_COLORS.length]);
+  });
+  return map;
 }
 
-export default function CalendarScreen({ tasks, habits, habitLogs, accentColor }: Props) {
-  const [current,  setCurrent]  = useState(new Date());
-  const [selected, setSelected] = useState(new Date());
-  const [visible,  setVisible]  = useState(false);
+function toDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
-  useEffect(() => { setTimeout(() => setVisible(true), 50); }, []);
+function getWeekStart(d: Date): Date {
+  const copy = new Date(d);
+  copy.setDate(d.getDate() - d.getDay());
+  copy.setHours(0,0,0,0);
+  return copy;
+}
 
-  const year  = current.getFullYear();
-  const month = current.getMonth();
+function addDays(d: Date, n: number): Date {
+  const copy = new Date(d);
+  copy.setDate(copy.getDate() + n);
+  return copy;
+}
+
+export default function CalendarScreen({ tasks, habits, habitLogs, accentColor, onCreateTask }: Props) {
+  const [view,    setView]    = useState<'day' | 'week' | 'month'>('week');
+  const [refDate, setRefDate] = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
+  const [quickSlot, setQuickSlot] = useState<{ date: string; time: string } | null>(null);
+  const [quickTitle, setQuickTitle] = useState('');
+  const quickRef = useRef<HTMLInputElement>(null);
+
+  const catColors = buildCategoryColors(tasks);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = toDateStr(today);
+
+  const taskColor = (t: Task) =>
+    t.category && catColors.has(t.category) ? catColors.get(t.category)! : accentColor;
+
+  function navigate(delta: number) {
+    setRefDate(prev => {
+      const d = new Date(prev);
+      if (view === 'day')   d.setDate(d.getDate() + delta);
+      if (view === 'week')  d.setDate(d.getDate() + delta * 7);
+      if (view === 'month') d.setMonth(d.getMonth() + delta);
+      return d;
+    });
+  }
+
+  function headerLabel() {
+    if (view === 'day')   return `${refDate.getDate()} ${MONTHS_HE[refDate.getMonth()]} ${refDate.getFullYear()}`;
+    if (view === 'week') {
+      const ws = getWeekStart(refDate);
+      const we = addDays(ws, 6);
+      if (ws.getMonth() === we.getMonth()) return `${MONTHS_HE[ws.getMonth()]} ${ws.getFullYear()}`;
+      return `${MONTHS_HE[ws.getMonth()]}–${MONTHS_HE[we.getMonth()]} ${ws.getFullYear()}`;
+    }
+    return `${MONTHS_HE[refDate.getMonth()]} ${refDate.getFullYear()}`;
+  }
+
+  function handleSlotTap(date: string, time: string) {
+    setQuickSlot({ date, time });
+    setQuickTitle('');
+    setTimeout(() => quickRef.current?.focus(), 80);
+  }
+
+  function submitQuick() {
+    if (!quickSlot || !quickTitle.trim()) { setQuickSlot(null); return; }
+    onCreateTask({ title: quickTitle.trim(), priority: 'medium', reminder: { date: quickSlot.date, time: quickSlot.time, recurrence: 'none' as const } });
+    setQuickSlot(null);
+    setQuickTitle('');
+  }
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: 'var(--bg-primary)' }} dir="rtl">
+
+      {/* Header */}
+      <div className="flex-shrink-0 px-4 pt-4 pb-2" style={{ borderBottom: '1px solid var(--separator)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={() => navigate(-1)}
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+          <span className="font-bold text-base text-white">{headerLabel()}</span>
+          <button onClick={() => navigate(1)}
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Segmented control */}
+        <div className="flex rounded-xl overflow-hidden p-0.5" style={{ background: 'var(--bg-elevated)' }}>
+          {(['day','week','month'] as const).map(v => (
+            <button key={v} onClick={() => setView(v)}
+              className="flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all"
+              style={view === v
+                ? { background: accentColor, color: '#000' }
+                : { background: 'transparent', color: 'var(--text-secondary)' }}>
+              {v === 'day' ? 'יום' : v === 'week' ? 'שבוע' : 'חודש'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        {view === 'month' && (
+          <MonthView
+            refDate={refDate}
+            tasks={tasks}
+            habits={habits}
+            habitLogs={habitLogs}
+            accentColor={accentColor}
+            catColors={catColors}
+            today={today}
+            onDayTap={d => { setRefDate(d); setView('day'); }}
+          />
+        )}
+        {view === 'week' && (
+          <WeekView
+            refDate={refDate}
+            tasks={tasks}
+            habits={habits}
+            habitLogs={habitLogs}
+            accentColor={accentColor}
+            catColors={catColors}
+            today={today}
+            onSlotTap={handleSlotTap}
+          />
+        )}
+        {view === 'day' && (
+          <DayView
+            refDate={refDate}
+            tasks={tasks}
+            habits={habits}
+            habitLogs={habitLogs}
+            accentColor={accentColor}
+            catColors={catColors}
+            today={today}
+            onSlotTap={handleSlotTap}
+          />
+        )}
+      </div>
+
+      {/* Quick-add bottom sheet */}
+      {quickSlot && (
+        <div className="bottom-sheet" onClick={() => setQuickSlot(null)}>
+          <div className="bottom-sheet-panel px-5 pt-4 pb-6" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full bg-gray-700 mx-auto mb-4" />
+            <p className="text-xs font-semibold mb-3" style={{ color: 'var(--text-secondary)' }}>
+              {quickSlot.date} · {quickSlot.time}
+            </p>
+            <input
+              ref={quickRef}
+              value={quickTitle}
+              onChange={e => setQuickTitle(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submitQuick()}
+              placeholder="שם המשימה..."
+              dir="rtl"
+              className="w-full rounded-xl px-4 py-3 text-sm outline-none text-white mb-3"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--separator)' }}
+            />
+            <button onClick={submitQuick}
+              className="w-full py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
+              style={{ background: accentColor, color: '#000' }}>
+              הוסף משימה
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Month View ─────────────────────────────────────────────────────────── */
+
+function MonthView({ refDate, tasks, habits, habitLogs, accentColor, catColors, today, onDayTap }: {
+  refDate: Date; tasks: Task[]; habits: Habit[]; habitLogs: HabitLog[];
+  accentColor: string; catColors: Map<string,string>; today: Date;
+  onDayTap: (d: Date) => void;
+}) {
+  const year  = refDate.getFullYear();
+  const month = refDate.getMonth();
   const firstDay    = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date();
 
-  // Dot markers on calendar grid
-  const dotDays = new Set<number>();
+  const dotDays = new Map<number, string[]>();
   tasks.forEach(t => {
     if (!t.reminder?.date) return;
     const [y, m, d] = t.reminder.date.split('-').map(Number);
-    if (y === year && m - 1 === month) dotDays.add(d);
+    if (y === year && m - 1 === month) {
+      const color = t.category && catColors.has(t.category) ? catColors.get(t.category)! : accentColor;
+      if (!dotDays.has(d)) dotDays.set(d, []);
+      dotDays.get(d)!.push(color);
+    }
   });
 
   const cells: (number | null)[] = [];
@@ -43,210 +225,183 @@ export default function CalendarScreen({ tasks, habits, habitLogs, accentColor }
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const selDay   = selected.getDate();
-  const selMonth = selected.getMonth();
-  const selYear  = selected.getFullYear();
-  const selStr   = `${selYear}-${String(selMonth + 1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}`;
-  const selDow   = selected.getDay();
-
-  // Tasks for selected day
-  const dayTasks = tasks.filter(t => {
-    if (!t.reminder?.date) return false;
-    const [y, m, d] = t.reminder.date.split('-').map(Number);
-    return y === selYear && m - 1 === selMonth && d === selDay;
-  });
-
-  // Habits for selected day (based on frequency/targetDays)
-  const dayHabits = habits.filter(h => {
-    if (h.frequency === 'daily') return true;
-    if (h.frequency === 'weekly') return h.targetDays.includes(selDow);
-    return false;
-  });
-
-  // Sort items by time (tasks with time, habits with time)
-  interface CalItem {
-    id: string;
-    kind: 'task' | 'habit';
-    title: string;
-    emoji?: string;
-    time?: string;
-    done: boolean;
-    color: string;
-    url?: string;
-  }
-
-  const timedItems: CalItem[] = [];
-  const untimedHabits: CalItem[] = [];
-  const untimedTasks: CalItem[] = [];
-
-  dayHabits.forEach(h => {
-    const done = habitLogs.some(l => l.habitId === h.id && l.date === selStr);
-    const item: CalItem = { id: h.id, kind: 'habit', title: h.title, emoji: h.emoji, done, color: h.color, url: h.url };
-    untimedHabits.push(item);
-  });
-
-  dayTasks.forEach(t => {
-    const item: CalItem = {
-      id: t.id, kind: 'task', title: t.title,
-      time: t.reminder?.time, done: t.status === 'done', color: accentColor, url: t.url,
-    };
-    if (t.reminder?.time) timedItems.push(item);
-    else untimedTasks.push(item);
-  });
-
-  timedItems.sort((a, b) => timeToMin(a.time!) - timeToMin(b.time!));
-
-  const totalItems = dayHabits.length + dayTasks.length;
+  const todayDay   = today.getDate();
+  const todayMonth = today.getMonth();
+  const todayYear  = today.getFullYear();
 
   return (
-    <div className="flex flex-col h-full bg-black" dir="rtl">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex-shrink-0">
-        <h2 className="text-center font-bold text-lg mb-4"
-            style={{ opacity: visible ? 1 : 0, transform: visible ? 'none' : 'translateY(-10px)', transition: 'all 0.4s ease' }}>
-          📅 קלנדר
-        </h2>
-
-        {/* Month navigator */}
-        <div className="flex items-center justify-between mb-3 rounded-2xl px-4 py-3"
-             style={{ background: 'rgba(255,255,255,0.05)', opacity: visible ? 1 : 0, transition: 'all 0.4s ease 0.1s' }}>
-          <button onClick={() => setCurrent(new Date(year, month + 1, 1))}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-            style={{ background: 'rgba(255,255,255,0.08)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-          <span className="font-semibold text-base text-white">{MONTHS_HE[month]} {year}</span>
-          <button onClick={() => setCurrent(new Date(year, month - 1, 1))}
-            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-            style={{ background: 'rgba(255,255,255,0.08)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-        </div>
-
-        {/* Day headers */}
-        <div className="grid grid-cols-7 mb-1"
-             style={{ opacity: visible ? 1 : 0, transition: 'all 0.4s ease 0.15s' }}>
-          {DAYS_HE.map(d => (
-            <div key={d} className="text-center text-xs text-gray-500 py-1 font-medium">{d}</div>
-          ))}
-        </div>
-
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1"
-             style={{ opacity: visible ? 1 : 0, transition: 'all 0.4s ease 0.2s' }}>
-          {cells.map((day, i) => {
-            if (!day) return <div key={i} />;
-            const isToday    = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
-            const isSelected = day === selDay && month === selMonth && year === selYear;
-            const hasDot     = dotDays.has(day);
-            return (
-              <button key={i}
-                onClick={() => setSelected(new Date(year, month, day))}
-                className="aspect-square rounded-full flex flex-col items-center justify-center text-sm relative transition-all duration-200 active:scale-90"
-                style={isSelected
-                  ? { background: accentColor, color: '#000', fontWeight: 700 }
-                  : isToday
-                  ? { border: `1.5px solid ${accentColor}`, color: '#fff' }
-                  : { color: '#d1d5db' }}
-              >
-                {day}
-                {hasDot && (
-                  <span className="absolute bottom-[3px] w-1.5 h-1.5 rounded-full"
-                        style={{ background: isSelected ? '#000' : accentColor }} />
-                )}
-              </button>
-            );
-          })}
-        </div>
+    <div className="flex flex-col h-full overflow-y-auto px-2 pt-2">
+      <div className="grid grid-cols-7 mb-1">
+        {DAYS_SHORT.map(d => (
+          <div key={d} className="text-center text-[11px] py-1 font-medium" style={{ color: 'var(--text-tertiary)' }}>{d}</div>
+        ))}
       </div>
-
-      <div className="h-px mx-4 my-3 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.07)' }} />
-
-      {/* Day detail */}
-      <div className="flex-1 overflow-y-auto px-4 pb-6"
-           style={{ opacity: visible ? 1 : 0, transition: 'all 0.4s ease 0.3s' }}>
-
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-bold text-white">{selDay} {MONTHS_HE[selMonth]}</p>
-          <span className="text-xs text-gray-500 px-2 py-1 rounded-full"
-                style={{ background: 'rgba(255,255,255,0.06)' }}>
-            {totalItems} פריטים
-          </span>
-        </div>
-
-        {totalItems === 0 ? (
-          <div className="text-center mt-10 fade-up">
-            <div className="text-3xl mb-2">✨</div>
-            <p className="text-gray-600 text-sm">יום פנוי — ליהנות!</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {/* Habits (no time — shown first as chips) */}
-            {untimedHabits.length > 0 && (
-              <div className="mb-3">
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">הרגלים</p>
-                <div className="space-y-1.5">
-                  {untimedHabits.map((h, i) => (
-                    <div key={h.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl fade-up"
-                         style={{ animationDelay: `${i * 0.04}s`, background: h.done ? h.color + '18' : 'rgba(255,255,255,0.04)', border: `1px solid ${h.done ? h.color + '44' : 'rgba(255,255,255,0.07)'}` }}>
-                      <span className="text-base">{h.emoji}</span>
-                      <span className={`text-sm flex-1 ${h.done ? 'line-through' : 'text-white'}`}
-                            style={{ color: h.done ? h.color : undefined }}>{h.title}</span>
-                      {h.done && <span className="text-xs font-bold" style={{ color: h.color }}>✓</span>}
-                      {h.url && <LinkBadge url={h.url} accentColor={accentColor} />}
-                    </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />;
+          const isToday = day === todayDay && month === todayMonth && year === todayYear;
+          const dots    = dotDays.get(day) ?? [];
+          return (
+            <button key={i}
+              onClick={() => onDayTap(new Date(year, month, day))}
+              className="aspect-square rounded-xl flex flex-col items-center justify-center text-sm relative transition-all active:scale-90"
+              style={isToday
+                ? { background: accentColor, color: '#000', fontWeight: 700 }
+                : { color: 'var(--text-primary)' }}>
+              {day}
+              {dots.length > 0 && (
+                <div className="flex gap-0.5 absolute bottom-1">
+                  {dots.slice(0,3).map((c,j) => (
+                    <span key={j} className="w-1 h-1 rounded-full" style={{ background: isToday ? '#000' : c }} />
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-            {/* Timed items on timeline */}
-            {timedItems.length > 0 && (
-              <div className="mb-3">
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">לפי שעה</p>
-                <div className="relative">
-                  <div className="absolute right-[44px] top-0 bottom-0 w-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                  <div className="space-y-2">
-                    {timedItems.map((item, i) => (
-                      <div key={item.id} className="flex items-center gap-3 fade-up"
-                           style={{ animationDelay: `${i * 0.05}s` }}>
-                        <div className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl"
-                             style={{ background: item.done ? item.color + '14' : 'rgba(255,255,255,0.04)', border: `1px solid ${item.done ? item.color + '33' : 'rgba(255,255,255,0.07)'}` }}>
-                          {item.emoji && <span className="text-base">{item.emoji}</span>}
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm truncate ${item.done ? 'line-through text-gray-500' : 'text-white'}`}>{item.title}</p>
-                          </div>
-                          {item.url && <LinkBadge url={item.url} accentColor={accentColor} />}
-                        </div>
-                        <div className="w-11 text-right flex-shrink-0">
-                          <span className="text-xs font-mono" style={{ color: item.color }}>{item.time}</span>
-                        </div>
+/* ─── Week View ──────────────────────────────────────────────────────────── */
+
+function WeekView({ refDate, tasks, habits, habitLogs, accentColor, catColors, today, onSlotTap }: {
+  refDate: Date; tasks: Task[]; habits: Habit[]; habitLogs: HabitLog[];
+  accentColor: string; catColors: Map<string,string>; today: Date;
+  onSlotTap: (date: string, time: string) => void;
+}) {
+  const weekStart = getWeekStart(refDate);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Day header row */}
+      <div className="flex-shrink-0 flex" style={{ borderBottom: '1px solid var(--separator)' }}>
+        <div className="w-12 flex-shrink-0" />
+        {days.map((d, i) => {
+          const isToday = toDateStr(d) === toDateStr(today);
+          return (
+            <div key={i} className="flex-1 text-center py-2">
+              <p className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>{DAYS_SHORT[d.getDay()]}</p>
+              <p className="text-sm font-bold mt-0.5 w-7 h-7 rounded-full flex items-center justify-center mx-auto"
+                style={isToday ? { background: accentColor, color: '#000' } : { color: 'var(--text-primary)' }}>
+                {d.getDate()}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Time grid */}
+      <div className="flex-1 overflow-y-auto">
+        {HOURS.map(hour => {
+          const timeStr = `${String(hour).padStart(2,'0')}:00`;
+          return (
+            <div key={hour} className="flex" style={{ minHeight: '52px', borderBottom: '1px solid var(--separator)', opacity: 0.9 }}>
+              <div className="w-12 flex-shrink-0 text-[10px] text-right pr-2 pt-1" style={{ color: 'var(--text-tertiary)' }}>
+                {timeStr}
+              </div>
+              {days.map((d, di) => {
+                const dateStr = toDateStr(d);
+                const slotTasks = tasks.filter(t => t.reminder?.date === dateStr && t.reminder?.time?.startsWith(String(hour).padStart(2,'0')));
+                return (
+                  <div key={di} className="flex-1 relative border-r last:border-r-0 cursor-pointer"
+                    style={{ borderColor: 'var(--separator)' }}
+                    onClick={() => onSlotTap(dateStr, timeStr)}>
+                    {slotTasks.map(t => (
+                      <div key={t.id}
+                        className="absolute inset-x-0.5 top-0.5 rounded-md px-1 text-[10px] font-semibold truncate"
+                        style={{ background: (t.category && catColors.get(t.category)) || accentColor, color: '#000', minHeight: '18px', lineHeight: '18px' }}>
+                        {t.title}
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* Untimed tasks */}
-            {untimedTasks.length > 0 && (
-              <div>
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">משימות</p>
-                <div className="space-y-1.5">
-                  {untimedTasks.map((t, i) => (
-                    <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl fade-up"
-                         style={{ animationDelay: `${i * 0.04}s`, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.done ? '#4b5563' : accentColor }} />
-                      <p className={`text-sm flex-1 ${t.done ? 'line-through text-gray-500' : 'text-white'}`}>{t.title}</p>
-                      {t.url && <LinkBadge url={t.url} accentColor={accentColor} />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+/* ─── Day View ───────────────────────────────────────────────────────────── */
+
+function DayView({ refDate, tasks, habits, habitLogs, accentColor, catColors, today, onSlotTap }: {
+  refDate: Date; tasks: Task[]; habits: Habit[]; habitLogs: HabitLog[];
+  accentColor: string; catColors: Map<string,string>; today: Date;
+  onSlotTap: (date: string, time: string) => void;
+}) {
+  const dateStr = toDateStr(refDate);
+  const dayTasks = tasks.filter(t => t.reminder?.date === dateStr);
+  const untimedTasks = dayTasks.filter(t => !t.reminder?.time);
+  const dow = refDate.getDay();
+
+  const dayHabits = habits.filter(h => {
+    if (h.frequency === 'daily') return true;
+    if (h.frequency === 'weekly') return h.targetDays.includes(dow);
+    return false;
+  });
+
+  return (
+    <div className="flex flex-col h-full overflow-y-auto">
+      {/* Habits chips */}
+      {dayHabits.length > 0 && (
+        <div className="px-4 pt-3 pb-2 flex-shrink-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>הרגלים</p>
+          <div className="flex flex-wrap gap-1.5">
+            {dayHabits.map(h => {
+              const done = habitLogs.some(l => l.habitId === h.id && l.date === dateStr);
+              return (
+                <span key={h.id} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+                  style={{ background: done ? h.color + '33' : 'var(--bg-elevated)', color: done ? h.color : 'var(--text-secondary)', border: `1px solid ${done ? h.color + '55' : 'var(--separator)'}` }}>
+                  {h.emoji} {h.title}
+                  {done && <span style={{ color: h.color }}>✓</span>}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Untimed tasks */}
+      {untimedTasks.length > 0 && (
+        <div className="px-4 pb-2 flex-shrink-0">
+          {untimedTasks.map(t => (
+            <div key={t.id} className="flex items-center gap-2 px-3 py-2 rounded-xl mb-1"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--separator)' }}>
+              <div className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ background: (t.category && catColors.get(t.category)) || accentColor }} />
+              <p className={`text-sm flex-1 ${t.status === 'done' ? 'line-through' : 'text-white'}`}
+                style={{ color: t.status === 'done' ? 'var(--text-tertiary)' : undefined }}>{t.title}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Hourly timeline */}
+      {HOURS.map(hour => {
+        const timeStr = `${String(hour).padStart(2,'0')}:00`;
+        const slotTasks = tasks.filter(t => t.reminder?.date === dateStr && t.reminder?.time?.startsWith(String(hour).padStart(2,'0')));
+        return (
+          <div key={hour} className="flex items-start gap-3 px-4 cursor-pointer"
+            style={{ minHeight: '52px', borderBottom: '1px solid var(--separator)', paddingTop: '8px' }}
+            onClick={() => onSlotTap(dateStr, timeStr)}>
+            <span className="text-[11px] w-12 text-right flex-shrink-0 pt-0.5" style={{ color: 'var(--text-tertiary)' }}>{timeStr}</span>
+            <div className="flex-1 flex flex-col gap-1">
+              {slotTasks.map(t => (
+                <div key={t.id} className="rounded-xl px-3 py-1.5 text-xs font-semibold"
+                  style={{ background: (t.category && catColors.get(t.category)) || accentColor, color: '#000' }}>
+                  {t.title}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      <div className="h-6" />
     </div>
   );
 }

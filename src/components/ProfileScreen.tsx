@@ -20,6 +20,8 @@ interface Props {
   onThemeChange: (t: ThemeColor) => void;
   onLogout: () => void;
   onOpenGuide?: () => void;
+  userName?: string;
+  onUpdateName?: (name: string) => void;
   onAddShortcut: (sc: Omit<VoiceShortcut, 'id'>) => void;
   onRemoveShortcut: (id: string) => void;
 }
@@ -232,7 +234,10 @@ export default function ProfileScreen({
   onAddDomain, onUpdateDomain, onRemoveDomain,
   onThemeChange, onLogout, onOpenGuide,
   onAddShortcut, onRemoveShortcut,
+  userName, onUpdateName,
 }: Props) {
+  const [editingName, setEditingName]     = useState(false);
+  const [nameVal, setNameVal]             = useState(userName || '');
   const [newCat, setNewCat]               = useState('');
   const [editingCat, setEditingCat]       = useState<string | null>(null);
   const [editCatVal, setEditCatVal]       = useState('');
@@ -281,6 +286,35 @@ export default function ProfileScreen({
           <h1 className="text-lg font-bold">הגדרות</h1>
           <p className="text-xs text-gray-500 mt-0.5">התאם את האפליקציה לעצמך</p>
         </div>
+
+        {/* ── PROFILE NAME ── */}
+        <Card>
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+            <span className="text-sm text-gray-400">שם</span>
+            {editingName ? (
+              <input
+                autoFocus
+                value={nameVal}
+                onChange={e => setNameVal(e.target.value)}
+                onBlur={() => { if (nameVal.trim()) onUpdateName?.(nameVal.trim()); setEditingName(false); }}
+                onKeyDown={e => { if (e.key === 'Enter') { if (nameVal.trim()) onUpdateName?.(nameVal.trim()); setEditingName(false); } }}
+                className="bg-transparent outline-none text-white text-sm font-medium text-left flex-1"
+                style={{ fontSize: '16px', textAlign: 'right' }}
+                dir="rtl"
+                placeholder="הכנס שם..."
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-white">{userName || '—'}</span>
+                <button onClick={() => { setNameVal(userName || ''); setEditingName(true); }}
+                  className="text-xs px-3 py-1 rounded-full"
+                  style={{ background: accentColor + '22', color: accentColor }}>
+                  ערוך
+                </button>
+              </div>
+            )}
+          </div>
+        </Card>
 
         <StatsSection
           tasks={tasks} habits={habits} habitLogs={habitLogs}

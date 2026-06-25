@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task, Goal, Habit } from '../types';
+import { Task, Goal, Habit, HabitLog } from '../types';
 import { LinkBadge } from './AppLinkInput';
 import AppLinkInput from './AppLinkInput';
 
@@ -7,7 +7,9 @@ interface Props {
   tasks: Task[];
   goals?: Goal[];
   habits?: Habit[];
+  habitLogs?: HabitLog[];
   aiLanguage?: string;
+  userName?: string;
   onNewRecording: () => void;
   onOpenJarvis?: () => void;
   onUpdateTask: (id: string, data: Partial<Task>) => void;
@@ -28,7 +30,7 @@ function getGreeting() {
   return 'לילה טוב';
 }
 
-export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage = 'hebrew', onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
+export default function HomeScreen({ tasks, goals = [], habits = [], habitLogs = [], aiLanguage = 'hebrew', userName, onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
   const [menuOpen, setMenuOpen]     = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [visible, setVisible]       = useState(false);
@@ -50,6 +52,9 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
   const activeTasks  = tasks.filter(t => t.status !== 'done');
   const activeGoals  = goals.filter(g => g.status !== 'completed').length;
   const todayStr     = new Date().toISOString().split('T')[0];
+  const habitsDoneToday = new Set(
+    habitLogs.filter(l => l.date === todayStr).map(l => l.habitId)
+  );
 
   const bySearch = searchQuery.trim()
     ? tasks.filter(t => t.title.includes(searchQuery) || t.description?.includes(searchQuery))
@@ -83,7 +88,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
   };
 
   return (
-    <div className="flex flex-col h-full relative" style={{ background: '#0a0a0a' }}>
+    <div className="flex flex-col h-full" style={{ background: '#0a0a0a' }}>
 
       {/* ── HERO CARD — colored gradient top ── */}
       <div
@@ -134,7 +139,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
         </div>
 
         {/* Greeting */}
-        <h1 className="text-[32px] font-black text-white leading-tight tracking-tight">{greeting} 👋</h1>
+        <h1 className="text-[32px] font-black text-white leading-tight tracking-tight">{greeting}{userName ? `, ${userName}` : ''} 👋</h1>
         <p className="text-sm mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
           {activeTasks.length > 0 ? `יש לך ${activeTasks.length} משימות פעילות` : 'כל המשימות הושלמו 🎉'}
         </p>
@@ -157,8 +162,18 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
         {/* Stat cards */}
         <div className="flex gap-3 mt-5">
           <StatCard icon="✅" value={activeTasks.length} label="משימות" color={accentColor} />
-          <StatCard icon="🎯" value={activeGoals}         label="יעדים"   color="#a78bfa" />
-          <StatCard icon="🔥" value={habits.length}       label="הרגלים"  color="#f97316" />
+          <RingCard
+            value={habits.filter(h => habitsDoneToday.has(h.id)).length}
+            total={habits.length}
+            label="הרגלים"
+            color="#f97316"
+          />
+          <RingCard
+            value={goals.filter(g => g.status !== 'completed' && g.milestones?.some(m => m.completed)).length}
+            total={Math.max(1, goals.filter(g => g.status !== 'completed').length)}
+            label="יעדים"
+            color="#a78bfa"
+          />
         </div>
       </div>
 
@@ -211,9 +226,9 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
             </div>
           )}
 
-          {/* Empty state — fills ALL remaining height */}
+          {/* Empty state — pushed to bottom */}
           {filteredActive.length === 0 && filteredDone.length === 0 && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-5 pb-28">
+            <div className="flex-1 flex flex-col items-center justify-end gap-5 pb-6">
               {searchQuery || filter !== 'all' ? (
                 <>
                   <span className="text-5xl">{filter === 'done' ? '✅' : filter === 'high' ? '🔥' : filter === 'today' ? '📅' : '🔍'}</span>
@@ -225,18 +240,17 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
                 </>
               ) : (
                 <>
-                  <button onClick={onOpenJarvis}
-                    className="w-24 h-24 rounded-full flex items-center justify-center transition-all active:scale-90"
-                    style={{ background: accentColor + '18', border: `2px solid ${accentColor}40`, boxShadow: `0 0 50px ${accentColor}30` }}>
-                    <svg width="38" height="38" viewBox="0 0 24 24" fill={accentColor}>
-                      <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
-                    </svg>
-                  </button>
                   <div className="text-center">
                     <p className="text-white font-bold text-xl">שוחח עם ג׳רוויס</p>
                     <p className="text-gray-500 text-sm mt-1.5">לחץ לעזרה ותכנון</p>
-                    <p className="text-gray-600 text-sm mt-1">או הוסף משימה עם + למטה</p>
                   </div>
+                  <button onClick={onOpenJarvis}
+                    className="w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-90"
+                    style={{ background: accentColor + '18', border: `2px solid ${accentColor}40`, boxShadow: `0 0 40px ${accentColor}30` }}>
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill={accentColor}>
+                      <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+                    </svg>
+                  </button>
                 </>
               )}
             </div>
@@ -283,29 +297,27 @@ export default function HomeScreen({ tasks, goals = [], habits = [], aiLanguage 
             </>
           )}
 
-          <div className="h-20" />
+          <div className="h-4" />
         </div>
       </div>
 
-      {/* ── FAB — floating action button ── */}
-      <button
-        onClick={onNewRecording}
-        className="absolute flex items-center gap-2.5 rounded-full font-bold text-sm transition-all active:scale-95"
-        style={{
-          bottom: '12px',
-          right: '16px',
-          background: accentColor,
-          color: '#000',
-          padding: '14px 22px',
-          boxShadow: `0 6px 28px ${accentColor}70`,
-          zIndex: 30,
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="black">
-          <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
-        </svg>
-        + הוסף
-      </button>
+      {/* ── Bottom action bar — always pinned to bottom ── */}
+      <div className="flex-shrink-0 px-4 pb-4 pt-2">
+        <button
+          onClick={onNewRecording}
+          className="w-full flex items-center justify-center gap-2.5 rounded-2xl font-bold text-base py-4 transition-all active:scale-[0.98]"
+          style={{
+            background: accentColor,
+            color: '#000',
+            boxShadow: `0 6px 28px ${accentColor}60`,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="black">
+            <path d="M12 1a4 4 0 014 4v6a4 4 0 01-8 0V5a4 4 0 014-4zm-1 17.93A8.001 8.001 0 014 11H2a10 10 0 0019.95 1H20a8 8 0 01-7 7.93V23h-2v-4.07z"/>
+          </svg>
+          + הוסף משימה
+        </button>
+      </div>
 
       {editingTask && (
         <EditTaskModal
@@ -329,6 +341,29 @@ function StatCard({ icon, value, label, color }: { icon: string; value: number; 
     >
       <span className="text-2xl">{icon}</span>
       <span className="text-xl font-bold leading-none" style={{ color }}>{value}</span>
+      <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</span>
+    </div>
+  );
+}
+
+function RingCard({ value, total, label, color }: { value: number; total: number; label: string; color: string }) {
+  const r = 18;
+  const circ = 2 * Math.PI * r;
+  const pct = total > 0 ? Math.min(1, value / total) : 0;
+  const dash = pct * circ;
+  return (
+    <div
+      className="flex-1 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 stat-pop"
+      style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}
+    >
+      <svg width="44" height="44" viewBox="0 0 44 44" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="22" cy="22" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
+        <circle cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="4"
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray 0.6s var(--spring)' }} />
+        <text x="22" y="26" textAnchor="middle" fill="white" fontSize="11" fontWeight="700"
+          style={{ transform: 'rotate(90deg)', transformOrigin: '22px 22px' }}>{value}</text>
+      </svg>
       <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</span>
     </div>
   );

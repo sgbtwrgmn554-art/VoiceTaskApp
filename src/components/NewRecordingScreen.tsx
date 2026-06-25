@@ -79,10 +79,14 @@ export default function NewRecordingScreen({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef     = useRef<HTMLInputElement>(null);
 
+  const VIDEO_URL_RE = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\S+|youtu\.be\/\S+|tiktok\.com\/\S+|instagram\.com\/(?:p|reel)\/\S+))/i;
+
   const { isRecording, isSupported, interimTranscript, startRecording, stopRecording } = useVoice({
     onTranscript: t => {
       const newText = text ? text + ' ' + t : t;
       setText(newText);
+      const urlMatch = newText.match(VIDEO_URL_RE);
+      if (urlMatch) { setVideoUrl(urlMatch[1]); setShowVideo(true); }
       if (autoClassify) classify(newText);
     },
     onError: code => setErrorCode(code),
