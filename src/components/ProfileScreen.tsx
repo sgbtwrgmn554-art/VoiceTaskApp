@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AppSettings, LifeDomain, ThemeColor, Task, Habit, HabitLog, Goal, ReflectionEntry, JarvisMode, AppearanceLevel, VoiceShortcut } from '../types';
 import { clearAllData } from '../utils/storage';
 
@@ -102,7 +102,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
       style={{ background: value ? 'var(--accent, #22c55e)' : 'rgba(255,255,255,0.12)' }}>
       <span
         className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow"
-        style={{ right: value ? '2px' : 'calc(100% - 22px)' }}
+        style={{ left: value ? '2px' : 'calc(100% - 22px)' }}
       />
     </button>
   );
@@ -137,7 +137,7 @@ function StatsSection({ tasks = [], habits = [], habitLogs = [], goals = [], ref
   const weekAgoStr = weekAgo.toISOString().split('T')[0];
   const today = new Date().toISOString().split('T')[0];
 
-  const doneTasks = tasks.filter(t => t.status === 'done' && t.updatedAt >= weekAgo.toISOString()).length;
+  const doneTasks = tasks.filter(t => t.status === 'done' && (t.updatedAt || '') >= weekAgo.toISOString()).length;
   const totalActive = tasks.filter(t => t.status !== 'done').length;
   const completedGoals = goals.filter(g => g.status === 'completed').length;
   const totalGoals = goals.length;
@@ -154,7 +154,7 @@ function StatsSection({ tasks = [], habits = [], habitLogs = [], goals = [], ref
     d.setDate(d.getDate() - i);
     const dayStr = d.toISOString().split('T')[0];
     const dayLabel = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'][d.getDay()];
-    const count = tasks.filter(t => t.status === 'done' && t.updatedAt.startsWith(dayStr)).length;
+    const count = tasks.filter(t => t.status === 'done' && (t.updatedAt ?? '').startsWith(dayStr)).length;
     days.push({ label: dayLabel, count });
   }
   const maxCount = Math.max(...days.map(d => d.count), 1);
@@ -238,6 +238,7 @@ export default function ProfileScreen({
 }: Props) {
   const [editingName, setEditingName]     = useState(false);
   const [nameVal, setNameVal]             = useState(userName || '');
+  useEffect(() => { setNameVal(userName || ''); }, [userName]);
   const [newCat, setNewCat]               = useState('');
   const [editingCat, setEditingCat]       = useState<string | null>(null);
   const [editCatVal, setEditCatVal]       = useState('');
@@ -491,7 +492,7 @@ export default function ProfileScreen({
           <div className="px-4 py-3">
             <div className="space-y-2">
               {settings.customDomains.map(domain => (
-                <div key={domain.id} className="flex items-center gap-2">
+                <div key={domain.id} className="relative flex items-center gap-2">
                   {/* Emoji picker */}
                   <button
                     onClick={() => setShowEmojiPicker(showEmojiPicker === domain.id ? null : domain.id)}

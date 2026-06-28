@@ -141,7 +141,7 @@ export default function HomeScreen({ tasks, goals = [], habits = [], habitLogs =
         {/* Greeting */}
         <h1 className="text-[32px] font-black text-white leading-tight tracking-tight">{greeting}{userName ? `, ${userName}` : ''} 👋</h1>
         {!userName && (
-          <button onClick={onGoToProfile} className="text-xs mt-1 text-left" style={{ color: 'rgba(255,255,255,0.35)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+          <button onClick={onGoToProfile} className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.35)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
             הוסף שם בפרופיל ←
           </button>
         )}

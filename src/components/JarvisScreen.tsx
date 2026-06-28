@@ -830,7 +830,7 @@ export default function JarvisScreen({
             {/* Chat messages */}
             {messages.map((m, i) => (
               <div
-                key={i}
+                key={`${m.role}-${i}-${m.text.slice(0,8)}`}
                 className={`flex fade-up ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}
                 style={{ animationDelay: `${Math.min(i * 0.04, 0.2)}s` }}
               >
@@ -945,7 +945,7 @@ export default function JarvisScreen({
           </div>
 
           {/* Bottom controls */}
-          <div className="flex-shrink-0 px-6 pb-8 pt-1 flex items-center gap-4">
+          <div className="flex-shrink-0 px-6 pt-1 flex items-center gap-4" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
             {!started ? (
               <button
                 onClick={() => { setStarted(true); localStorage.setItem('jarvis_started','1'); fetchBriefing(); }}

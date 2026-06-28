@@ -321,7 +321,7 @@ export default function App() {
              style={{
                background: 'var(--bg-primary)',
                borderTop: '1px solid var(--separator)',
-               paddingBottom: 'calc(4px + env(safe-area-inset-bottom))',
+               paddingBottom: 'max(8px, env(safe-area-inset-bottom, 20px))',
                paddingTop: '10px',
              }}>
           <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => switchTab('profile')}  accentColor={accentColor} />
@@ -341,9 +341,9 @@ function NavBtn({ icon, label, active, onClick, accentColor }: {
 }) {
   return (
     <button onClick={onClick}
-      className="flex-1 flex flex-col items-center gap-0.5 py-0.5 transition-transform active:scale-90">
+      className="flex-1 flex flex-col items-center gap-0.5 py-1 transition-transform active:scale-90" style={{ minHeight: 44 }}>
       <span
-        className="w-10 h-7 flex items-center justify-center rounded-xl transition-all duration-200"
+        className="w-10 h-8 flex items-center justify-center rounded-xl transition-all duration-200"
         style={{
           background: active ? accentColor + '22' : 'transparent',
           color: active ? accentColor : 'var(--text-tertiary)',
