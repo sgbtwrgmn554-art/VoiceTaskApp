@@ -30,7 +30,7 @@ function getGreeting() {
   return 'לילה טוב';
 }
 
-export default function HomeScreen({ tasks, goals = [], habits = [], habitLogs = [], aiLanguage = 'hebrew', userName, onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor }: Props) {
+export default function HomeScreen({ tasks, goals = [], habits = [], habitLogs = [], aiLanguage = 'hebrew', userName, onNewRecording, onOpenJarvis, onUpdateTask, onDeleteTask, onMarkDone, accentColor, onGoToProfile }: Props & { onGoToProfile?: () => void }) {
   const [menuOpen, setMenuOpen]     = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [visible, setVisible]       = useState(false);
@@ -140,6 +140,11 @@ export default function HomeScreen({ tasks, goals = [], habits = [], habitLogs =
 
         {/* Greeting */}
         <h1 className="text-[32px] font-black text-white leading-tight tracking-tight">{greeting}{userName ? `, ${userName}` : ''} 👋</h1>
+        {!userName && (
+          <button onClick={onGoToProfile} className="text-xs mt-1 text-left" style={{ color: 'rgba(255,255,255,0.35)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+            הוסף שם בפרופיל ←
+          </button>
+        )}
         <p className="text-sm mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
           {activeTasks.length > 0 ? `יש לך ${activeTasks.length} משימות פעילות` : 'כל המשימות הושלמו 🎉'}
         </p>

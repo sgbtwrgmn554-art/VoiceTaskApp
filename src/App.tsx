@@ -195,6 +195,7 @@ export default function App() {
               onDeleteTask={deleteTask}
               onMarkDone={markTaskDone}
               accentColor={accentColor}
+              onGoToProfile={() => switchTab('profile')}
             />
           </div>
         ) : tab === 'chat' ? (
@@ -320,7 +321,7 @@ export default function App() {
              style={{
                background: 'var(--bg-primary)',
                borderTop: '1px solid var(--separator)',
-               paddingBottom: '4px',
+               paddingBottom: 'calc(4px + env(safe-area-inset-bottom))',
                paddingTop: '10px',
              }}>
           <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => switchTab('profile')}  accentColor={accentColor} />
@@ -331,8 +332,6 @@ export default function App() {
           <NavBtn icon={<ChatIcon />}     label="AI"       active={tab === 'chat'}     onClick={() => switchTab('chat')}     accentColor={accentColor} />
         </nav>
       )}
-      {/* Safe area fill — covers iOS home indicator zone below nav bar */}
-      <div style={{ flexShrink: 0, height: 'env(safe-area-inset-bottom, 0px)', background: 'var(--bg-primary)' }} />
     </div>
   );
 }
