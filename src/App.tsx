@@ -317,7 +317,7 @@ export default function App() {
 
       {/* Bottom Navigation */}
       {!showNewRecording && (
-        <nav className="flex-shrink-0 flex items-end"
+        <nav className="flex-shrink-0 flex items-end launch-nav"
              style={{
                background: 'var(--bg-primary)',
                borderTop: '1px solid var(--separator)',

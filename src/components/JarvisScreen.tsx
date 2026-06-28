@@ -2,6 +2,44 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Task, Goal, Habit, HabitLog, ReflectionEntry, AppTab, VoiceShortcut, Desire } from '../types';
 import { useSpeech } from '../hooks/useSpeech';
 
+function renderMarkdown(text: string): React.ReactNode {
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+  let key = 0;
+
+  const renderInline = (s: string): React.ReactNode => {
+    const parts = s.split(/\*\*(.+?)\*\*/g);
+    return parts.length === 1 ? s : parts.map((p, i) =>
+      i % 2 === 1 ? <strong key={i}>{p}</strong> : p
+    );
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Skip table separator rows
+    if (/^\s*\|?[\s|:\-]+\|[\s|:\-]+\|?\s*$/.test(line) && line.includes('-')) continue;
+    // Headings
+    const headingMatch = line.match(/^#{1,3}\s+(.*)/);
+    if (headingMatch) {
+      result.push(<p key={key++} style={{ fontWeight: 700, color: '#fff', marginTop: result.length ? 6 : 0 }}>{renderInline(headingMatch[1])}</p>);
+      continue;
+    }
+    // Table row — strip pipes, join cells with ·
+    if (line.includes('|')) {
+      const cells = line.split('|').map(c => c.trim()).filter(Boolean);
+      if (cells.length) {
+        result.push(<p key={key++}>{cells.map((c, ci) => <React.Fragment key={ci}>{ci > 0 && <span style={{ opacity: 0.35 }}> · </span>}{renderInline(c)}</React.Fragment>)}</p>);
+        continue;
+      }
+    }
+    // Empty line
+    if (!line.trim()) { result.push(<div key={key++} style={{ height: 6 }} />); continue; }
+    // Normal line
+    result.push(<p key={key++}>{renderInline(line)}</p>);
+  }
+  return result;
+}
+
 type JarvisState = 'idle' | 'loading' | 'speaking' | 'listening' | 'thinking' | 'confirming' | 'focus' | 'weekly';
 
 interface Message { role: 'jarvis' | 'user'; text: string; }
@@ -594,7 +632,7 @@ export default function JarvisScreen({
       ) : (
         <>
           {/* Orb */}
-          <div className="flex-shrink-0 flex items-center justify-center py-6 card-appear">
+          <div className={`flex-shrink-0 flex items-center justify-center card-appear ${messages.length > 0 ? 'py-2' : 'py-6'}`} style={{ transition: 'padding 0.3s' }}>
             <div className="relative">
               {(state === 'listening' || state === 'speaking' || state === 'confirming') && (
                 <>
@@ -603,7 +641,7 @@ export default function JarvisScreen({
                 </>
               )}
               <div
-                className="w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500"
+                className={`${messages.length > 0 ? 'w-14 h-14' : 'w-24 h-24'} rounded-full flex items-center justify-center transition-all duration-500`}
                 style={{
                   background: `radial-gradient(circle at 40% 35%, ${pulseColor}66, ${pulseColor}11)`,
                   boxShadow: `0 0 40px ${pulseColor}44, inset 0 0 20px ${pulseColor}22`,
@@ -685,7 +723,7 @@ export default function JarvisScreen({
           )}
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 pb-2">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 space-y-3 pb-2" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
 
             {/* Pre-start idle view */}
             {!started && messages.length === 0 && (
@@ -804,16 +842,7 @@ export default function JarvisScreen({
                   }
                 >
                   {m.role === 'jarvis' && <p className="text-[10px] mb-1.5 opacity-50 tracking-wider font-semibold" style={{ color: accentColor }}>J.A.R.V.I.S</p>}
-                  {m.text.split('\n\n').map((para, pi) => (
-                    <p key={pi} className={pi > 0 ? 'mt-2' : ''}>
-                      {para.split('\n').map((line, li) => (
-                        <React.Fragment key={li}>
-                          {li > 0 && <br />}
-                          {line}
-                        </React.Fragment>
-                      ))}
-                    </p>
-                  ))}
+                  <div className="text-sm leading-relaxed space-y-0">{renderMarkdown(m.text)}</div>
                 </div>
               </div>
             ))}
