@@ -32,11 +32,12 @@ const ACCENT_COLORS: Record<ThemeColor, string> = {
 
 export default function App() {
   const [tab, setTab] = useState<AppTab>('home');
+  const [tabKey, setTabKey] = useState(0);
   const [showNewRecording, setShowNewRecording] = useState(false);
   const [showJarvis, setShowJarvis] = useState(false);
   const [jarvisInitialQ, setJarvisInitialQ] = useState<string | undefined>();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [user, setUser] = useState<{ email: string } | null>(() => {
+  const [user, setUser] = useState<{ email: string; name?: string } | null>(() => {
     const saved = localStorage.getItem('vt_user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -54,14 +55,20 @@ export default function App() {
     removeShortcut,
   } = useSettings();
 
-  const handleAuth = async (email: string, _password: string, _isRegister: boolean) => {
-    const u = { email };
+  const handleAuth = async (email: string, _password: string, _isRegister: boolean, name?: string) => {
+    const u = { email, name };
     localStorage.setItem('vt_user', JSON.stringify(u));
     setUser(u);
-    // Show onboarding for new users
     if (!localStorage.getItem('vt_onboarding_done')) {
       setShowOnboarding(true);
     }
+  };
+
+  const handleUpdateName = (name: string) => {
+    if (!user) return;
+    const u = { ...user, name };
+    localStorage.setItem('vt_user', JSON.stringify(u));
+    setUser(u);
   };
 
   // Check onboarding on mount for existing users
@@ -75,6 +82,11 @@ export default function App() {
     localStorage.removeItem('vt_user');
     setUser(null);
   };
+
+  const switchTab = useCallback((t: AppTab) => {
+    setTab(t);
+    setTabKey(k => k + 1);
+  }, []);
 
   const { tasks, createTask, updateTask, deleteTask, markTaskDone, setReminder } = useTasks();
 
@@ -137,7 +149,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-black text-white" style={{ '--accent': accentColor } as React.CSSProperties}>
+    <div className="flex flex-col app-launch text-white" style={{ flex: 1, background: 'var(--bg-primary)', '--accent': accentColor } as React.CSSProperties}>
 
       {/* Screens */}
       <div className="flex-1 overflow-hidden relative">
@@ -149,7 +161,7 @@ export default function App() {
               if (payload.kind === 'goal') {
                 createGoal(payload.title, payload.domainId as LifeDomainId, payload.description, payload.deadline);
                 setShowNewRecording(false);
-                setTab('goals');
+                switchTab('goals');
               } else {
                 createTask(payload.data);
                 setShowNewRecording(false);
@@ -169,22 +181,25 @@ export default function App() {
             domains={settings.customDomains}
           />
         ) : tab === 'home' ? (
-          <div key="home" className="h-full tab-in">
+          <div key={`home-${tabKey}`} className="h-full tab-in">
             <HomeScreen
               tasks={tasks}
               goals={goals}
               habits={habits}
+              habitLogs={habitLogs}
               aiLanguage={settings.aiLanguage}
+              userName={user?.name}
               onNewRecording={() => setShowNewRecording(true)}
               onOpenJarvis={() => setShowJarvis(true)}
               onUpdateTask={(id, data) => updateTask({ id, ...data })}
               onDeleteTask={deleteTask}
               onMarkDone={markTaskDone}
               accentColor={accentColor}
+              onGoToProfile={() => switchTab('profile')}
             />
           </div>
         ) : tab === 'chat' ? (
-          <div key="chat" className="h-full tab-in">
+          <div key={`chat-${tabKey}`} className="h-full tab-in">
             <AIChatScreen
               messages={messages}
               isLoading={isLoading}
@@ -194,11 +209,11 @@ export default function App() {
             />
           </div>
         ) : tab === 'calendar' ? (
-          <div key="calendar" className="h-full tab-in">
-            <CalendarScreen tasks={tasks} habits={habits} habitLogs={habitLogs} accentColor={accentColor} />
+          <div key={`calendar-${tabKey}`} className="h-full tab-in">
+            <CalendarScreen tasks={tasks} habits={habits} habitLogs={habitLogs} accentColor={accentColor} onCreateTask={(input) => { createTask(input); }} />
           </div>
         ) : tab === 'habits' ? (
-          <div key="habits" className="h-full tab-in">
+          <div key={`habits-${tabKey}`} className="h-full tab-in">
             <HabitsScreen
               habits={habits}
               todayReflection={todayReflection}
@@ -213,7 +228,7 @@ export default function App() {
             />
           </div>
         ) : tab === 'goals' ? (
-          <div key="goals" className="h-full tab-in">
+          <div key={`goals-${tabKey}`} className="h-full tab-in">
             <GoalsScreen
               goals={goals}
               domains={settings.customDomains}
@@ -230,7 +245,7 @@ export default function App() {
             />
           </div>
         ) : (
-          <div key="profile" className="h-full tab-in">
+          <div key={`profile-${tabKey}`} className="h-full tab-in">
             <ProfileScreen
               settings={settings}
               accentColor={accentColor}
@@ -254,6 +269,8 @@ export default function App() {
                 localStorage.removeItem('vt_onboarding_done');
                 setShowOnboarding(true);
               }}
+              userName={user?.name}
+              onUpdateName={handleUpdateName}
             />
           </div>
         )}
@@ -294,39 +311,25 @@ export default function App() {
           onUpdateGoalWhy={(id, why) => updateGoal(id, { why })}
           onAddReflection={addReflection}
           onAddDesire={addDesire}
-          onNavigate={(t) => { setTab(t as AppTab); setShowJarvis(false); }}
+          onNavigate={(t) => { switchTab(t as AppTab); setShowJarvis(false); }}
         />
       )}
 
       {/* Bottom Navigation */}
       {!showNewRecording && (
-        <nav className="flex-shrink-0 flex items-end justify-around"
+        <nav className="flex-shrink-0 flex items-end launch-nav"
              style={{
-               background: 'rgba(10,10,10,0.95)',
-               backdropFilter: 'blur(20px)',
-               WebkitBackdropFilter: 'blur(20px)',
-               borderTop: '1px solid rgba(255,255,255,0.07)',
-               paddingBottom: 'env(safe-area-inset-bottom, 10px)',
+               background: 'var(--bg-primary)',
+               borderTop: '1px solid var(--separator)',
+               paddingBottom: 'max(8px, env(safe-area-inset-bottom, 20px))',
                paddingTop: '10px',
              }}>
-          <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => setTab('profile')}  accentColor={accentColor} />
-          <NavBtn icon={<HabitsIcon />}   label="הרגלים"   active={tab === 'habits'}   onClick={() => setTab('habits')}   accentColor={accentColor} />
-
-          {/* Center home button */}
-          <button onClick={() => setTab('home')} className="flex flex-col items-center -mt-6 transition-transform active:scale-90">
-            <div className="w-[58px] h-[58px] rounded-full flex items-center justify-center transition-all"
-                 style={{
-                   background: tab === 'home' ? '#fff' : '#1a1a1a',
-                   boxShadow: tab === 'home'
-                     ? '0 4px 20px rgba(255,255,255,0.25)'
-                     : '0 0 0 1px rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.6)',
-                 }}>
-              <HomeIcon color={tab === 'home' ? '#000' : '#fff'} />
-            </div>
-          </button>
-
-          <NavBtn icon={<GoalsIcon />}    label="יעדים"    active={tab === 'goals'}    onClick={() => setTab('goals')}    accentColor={accentColor} />
-          <NavBtn icon={<ChatIcon />}     label="AI"       active={tab === 'chat'}     onClick={() => setTab('chat')}     accentColor={accentColor} />
+          <NavBtn icon={<ProfileIcon />}  label="פרופיל"   active={tab === 'profile'}  onClick={() => switchTab('profile')}  accentColor={accentColor} />
+          <NavBtn icon={<HabitsIcon />}   label="הרגלים"   active={tab === 'habits'}   onClick={() => switchTab('habits')}   accentColor={accentColor} />
+          <NavBtn icon={<HomeIcon color="currentColor" />} label="בית" active={tab === 'home'} onClick={() => switchTab('home')} accentColor={accentColor} />
+          <NavBtn icon={<CalendarIcon />} label="יומן"     active={tab === 'calendar'} onClick={() => switchTab('calendar')} accentColor={accentColor} />
+          <NavBtn icon={<GoalsIcon />}    label="יעדים"    active={tab === 'goals'}    onClick={() => switchTab('goals')}    accentColor={accentColor} />
+          <NavBtn icon={<ChatIcon />}     label="AI"       active={tab === 'chat'}     onClick={() => switchTab('chat')}     accentColor={accentColor} />
         </nav>
       )}
     </div>
@@ -338,22 +341,22 @@ function NavBtn({ icon, label, active, onClick, accentColor }: {
 }) {
   return (
     <button onClick={onClick}
-      className="flex flex-col items-center gap-1 px-2 py-0.5 min-w-[52px] transition-transform active:scale-90">
+      className="flex-1 flex flex-col items-center gap-0.5 py-1 transition-transform active:scale-90" style={{ minHeight: 44 }}>
       <span
-        className="w-12 h-8 flex items-center justify-center rounded-xl transition-all duration-200"
+        className="w-10 h-8 flex items-center justify-center rounded-xl transition-all duration-200"
         style={{
           background: active ? accentColor + '22' : 'transparent',
-          color: active ? accentColor : '#4b5563',
+          color: active ? accentColor : 'var(--text-tertiary)',
         }}
       >{icon}</span>
-      <span className="text-[10px] font-medium" style={{ color: active ? accentColor : '#4b5563' }}>{label}</span>
+      <span className="text-[9px] font-medium" style={{ color: active ? accentColor : 'var(--text-tertiary)' }}>{label}</span>
     </button>
   );
 }
 
-function HomeIcon({ color }: { color: string }) {
+function HomeIcon({ color = 'currentColor' }: { color?: string }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={color}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={color}>
       <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
     </svg>
   );

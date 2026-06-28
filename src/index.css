@@ -2,32 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary:     #000000;
+  --bg-elevated:    #1C1C1E;
+  --bg-card:        #2C2C2E;
+  --bg-input:       #3A3A3C;
+  --text-primary:   #FFFFFF;
+  --text-secondary: rgba(235,235,245,0.6);
+  --text-tertiary:  rgba(235,235,245,0.3);
+  --separator:      rgba(84,84,88,0.65);
+  --spring:         cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html {
+  height: -webkit-fill-available;
+}
+
 * {
   box-sizing: border-box;
   direction: rtl;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 body {
-  background-color: #0a0a0a;
+  background-color: var(--bg-primary);
   color: #fff;
-  overflow: hidden;
-  height: 100dvh;
-  min-height: -webkit-fill-available;
   margin: 0;
+  overflow: hidden;
+  height: 100%;
+  min-height: -webkit-fill-available;
 }
 
 #root {
-  height: 100dvh;
-  min-height: -webkit-fill-available;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
-  max-width: 480px;
-  margin: 0 auto;
-  position: relative;
   overflow: hidden;
+  background: var(--bg-primary);
 }
+
+/* App launch animation */
+@keyframes appLaunch {
+  0%   { opacity: 0; transform: scale(0.93) translateY(20px); }
+  60%  { opacity: 1; transform: scale(1.01) translateY(-3px); }
+  100% { opacity: 1; transform: scale(1)    translateY(0); }
+}
+.app-launch { animation: appLaunch 0.6s var(--spring) both; }
+
+@keyframes launchFadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.launch-nav { animation: launchFadeUp 0.55s var(--spring) 0.15s both; }
 
 input, textarea, select {
   direction: rtl;
@@ -82,13 +113,13 @@ input, textarea, select {
   from { transform: translateX(-32px); opacity: 0; }
   to   { transform: translateX(0);     opacity: 1; }
 }
-.slide-in { animation: slideIn 0.32s cubic-bezier(0.22,1,0.36,1); }
+.slide-in { animation: slideIn 0.32s var(--spring); }
 
 @keyframes fadeUp {
   from { transform: translateY(14px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
-.fade-up { animation: fadeUp 0.32s cubic-bezier(0.22,1,0.36,1) both; }
+.fade-up { animation: fadeUp 0.32s var(--spring) both; }
 
 /* Bounce in */
 @keyframes bounceIn {
@@ -96,7 +127,7 @@ input, textarea, select {
   60%  { transform: scale(1.05); }
   100% { transform: scale(1); opacity: 1; }
 }
-.bounce-in { animation: bounceIn 0.45s cubic-bezier(0.22,1,0.36,1) both; }
+.bounce-in { animation: bounceIn 0.45s var(--spring) both; }
 
 /* Scale pop for checkmark */
 @keyframes scalePop {
@@ -104,14 +135,14 @@ input, textarea, select {
   70%  { transform: scale(1.2); }
   100% { transform: scale(1); }
 }
-.scale-pop { animation: scalePop 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+.scale-pop { animation: scalePop 0.3s var(--spring) both; }
 
 /* Tab switch */
 @keyframes tabIn {
   from { opacity: 0; transform: translateY(22px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
-.tab-in { animation: tabIn 0.38s cubic-bezier(0.22,1,0.36,1) both; }
+.tab-in { animation: tabIn 0.38s var(--spring) both; }
 
 /* Shimmer for loading */
 @keyframes shimmer {
@@ -130,10 +161,10 @@ input, textarea, select {
 
 /* Glass card */
 .glass {
-  background: rgba(255,255,255,0.05);
+  background: var(--bg-elevated);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--separator);
 }
 
 /* Slide from right (for new screen push) */
@@ -141,17 +172,17 @@ input, textarea, select {
   from { transform: translateX(40px); opacity: 0; }
   to   { transform: translateX(0);    opacity: 1; }
 }
-.slide-from-right { animation: slideFromRight 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+.slide-from-right { animation: slideFromRight 0.3s var(--spring) both; }
 
 /* Slide from left (for back navigation) */
 @keyframes slideFromLeft {
   from { transform: translateX(-40px); opacity: 0; }
   to   { transform: translateX(0);     opacity: 1; }
 }
-.slide-from-left { animation: slideFromLeft 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+.slide-from-left { animation: slideFromLeft 0.3s var(--spring) both; }
 
 /* Stagger list items */
-.stagger-item { animation: fadeUp 0.28s cubic-bezier(0.22,1,0.36,1) both; }
+.stagger-item { animation: fadeUp 0.28s var(--spring) both; }
 .stagger-item:nth-child(1)  { animation-delay: 0.00s; }
 .stagger-item:nth-child(2)  { animation-delay: 0.05s; }
 .stagger-item:nth-child(3)  { animation-delay: 0.10s; }
@@ -182,7 +213,7 @@ input, textarea, select {
   from { transform: translateY(24px) scale(0.97); opacity: 0; }
   to   { transform: translateY(0) scale(1);       opacity: 1; }
 }
-.card-appear { animation: cardAppear 0.35s cubic-bezier(0.22,1,0.36,1) both; }
+.card-appear { animation: cardAppear 0.35s var(--spring) both; }
 
 /* Habit done celebration ring */
 @keyframes celebRing {
@@ -196,7 +227,7 @@ input, textarea, select {
   from { transform: translateY(-100%); opacity: 0; }
   to   { transform: translateY(0);     opacity: 1; }
 }
-.notif-slide { animation: notifSlide 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+.notif-slide { animation: notifSlide 0.3s var(--spring) both; }
 
 /* No scrollbar utility */
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -207,14 +238,14 @@ input, textarea, select {
   from { opacity: 0; transform: translateY(-16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.hero-enter { animation: heroEnter 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+.hero-enter { animation: heroEnter 0.5s var(--spring) both; }
 
 /* Stat card pop */
 @keyframes statPop {
   from { opacity: 0; transform: scale(0.88) translateY(8px); }
   to   { opacity: 1; transform: scale(1)    translateY(0); }
 }
-.stat-pop { animation: statPop 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+.stat-pop { animation: statPop 0.4s var(--spring) both; }
 .stat-pop:nth-child(1) { animation-delay: 0.05s; }
 .stat-pop:nth-child(2) { animation-delay: 0.12s; }
 .stat-pop:nth-child(3) { animation-delay: 0.19s; }
@@ -224,8 +255,25 @@ input, textarea, select {
   from { opacity: 0; transform: translateX(10px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-.pill-slide { animation: pillSlide 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+.pill-slide { animation: pillSlide 0.3s var(--spring) both; }
 .pill-slide:nth-child(1) { animation-delay: 0.0s; }
 .pill-slide:nth-child(2) { animation-delay: 0.06s; }
 .pill-slide:nth-child(3) { animation-delay: 0.12s; }
 .pill-slide:nth-child(4) { animation-delay: 0.18s; }
+
+/* Bottom sheet */
+.bottom-sheet {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,0.6);
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
+.bottom-sheet-panel {
+  background: var(--bg-elevated);
+  border-radius: 20px 20px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: sheetRise 0.4s var(--spring) both;
+}
+@keyframes sheetRise {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
